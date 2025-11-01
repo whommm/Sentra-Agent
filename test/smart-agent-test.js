@@ -536,13 +536,14 @@ async function shouldReply(msg, queuedMessages = []) {
     console.log('[智能判断] 消息中提到机器人，必须回复');
     return true;
   }
-  
+
   // 构建判断提示词
   const botNames = [CONFIG.botName, ...CONFIG.botAliases].join('、');
-  const historyContext = queuedMessages.length > 0
-    ? `\n\n最近的对话历史：\n${queuedMessages.map((m, i) => `${i + 1}. [${m.time_str}] ${m.sender_name}: ${m.text}`).join('\n')}`
+  const recentMessages = queuedMessages.slice(-5);
+  const historyContext = recentMessages.length > 0
+    ? `\n\n最近的对话历史：\n${recentMessages.map((m, i) => `${i + 1}. [${m.time_str}] ${m.sender_name}: ${m.text}`).join('\n')}`
     : '';
-  
+
   const judgePrompt = `你是群聊机器人"${CONFIG.botName}"。请判断以下消息是否需要你回复。
 
 判断标准：
