@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import SentraMcpSDK from 'sentra-mcp';
 import SentraPromptsSDK from 'sentra-prompts';
 import { Agent } from "./agent.js";
@@ -33,7 +34,7 @@ logger.info(`连接到 WebSocket 服务: ${WS_URL}`);
 const agent = new Agent({
   apiKey: process.env.API_KEY,
   apiBaseUrl: process.env.API_BASE_URL,
-  defaultModel: process.env.MAIN_AI_MODEL || 'gpt-4o-mini',
+  defaultModel: process.env.MAIN_AI_MODEL,
   temperature: parseFloat(process.env.TEMPERATURE || '0.7'),
   maxTokens: parseInt(process.env.MAX_TOKENS || '4096'),
   maxRetries: parseInt(process.env.MAX_RETRIES || '3'),
@@ -103,7 +104,7 @@ if (!ENABLE_USER_PERSONA) {
   logger.info('用户画像功能已禁用（ENABLE_USER_PERSONA=false）');
 }
 
-const MAIN_AI_MODEL = process.env.MAIN_AI_MODEL || 'gemini-2.5-flash-preview-09-2025';
+const MAIN_AI_MODEL = process.env.MAIN_AI_MODEL;
 const MAX_RESPONSE_RETRIES = parseInt(process.env.MAX_RESPONSE_RETRIES || '2');
 const MAX_RESPONSE_TOKENS = parseInt(process.env.MAX_RESPONSE_TOKENS || '260');
 const TOKEN_COUNT_MODEL = process.env.TOKEN_COUNT_MODEL || 'gpt-4o-mini';
