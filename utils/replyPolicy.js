@@ -129,10 +129,13 @@ function getConfig() {
     baseReplyThreshold: parseFloat(process.env.BASE_REPLY_THRESHOLD) || 0.65,
     // 时间衰减半衰期（秒）：消息的"新鲜度"衰减速度
     timeDecayHalfLife: parseFloat(process.env.TIME_DECAY_HALFLIFE) || 300, // 5分钟
-    // 对话节奏因子：快速对话时降低欲望值增长
-    conversationPaceFactor: parseFloat(process.env.CONVERSATION_PACE_FACTOR) || 0.7,
     // 上下文感知窗口（消息数）
     contextWindow: parseInt(process.env.CONTEXT_WINDOW) || 10,
+    // 对话节奏配置
+    paceFastThreshold: parseFloat(process.env.PACE_FAST_THRESHOLD) || 15,
+    paceFastAdjustment: parseFloat(process.env.PACE_FAST_ADJUSTMENT) || -0.1,
+    paceSlowThreshold: parseFloat(process.env.PACE_SLOW_THRESHOLD) || 180,
+    paceSlowAdjustment: parseFloat(process.env.PACE_SLOW_ADJUSTMENT) || 0.08,
     // 启用智能回复（false则总是回复）
     enableSmartReply: process.env.ENABLE_SMART_REPLY !== 'false',
     // Per-sender最大并发数
@@ -285,6 +288,9 @@ function incrementMessageCount(conversationId) {
       const alpha = 0.3; // 平滑因子
       state.avgMessageInterval = alpha * interval + (1 - alpha) * state.avgMessageInterval;
     }
+  } else {
+    // 首次消息：初始化为一个合理的默认值（避免一直是0）
+    state.avgMessageInterval = 60; // 默认60秒间隔
   }
   
   state.lastMessageTime = now;
@@ -424,12 +430,17 @@ export async function shouldReply(msg) {
   }
   if (state.lastMessageTime > 0) {
     const interval = now - state.lastMessageTime;
-    if (state.avgMessageInterval === 0) {
+    if (state.avgMessageInterval === 0 || state.avgMessageInterval === 60) {
+      // 第一次计算实际间隔时，直接使用真实间隔
       state.avgMessageInterval = interval;
     } else {
+      // 指数移动平均（EMA）
       const alpha = 0.3;
       state.avgMessageInterval = alpha * interval + (1 - alpha) * state.avgMessageInterval;
     }
+  } else {
+    // 首次消息：初始化为一个合理的默认值（避免一直是0）
+    state.avgMessageInterval = 60; // 默认60秒间隔
   }
   state.lastMessageTime = now;
   
@@ -462,12 +473,12 @@ export async function shouldReply(msg) {
   // 4. 对话节奏调整因子
   let paceAdjustment = 0;
   if (state.avgMessageInterval > 0) {
-    if (state.avgMessageInterval < 15) {
+    if (state.avgMessageInterval < config.paceFastThreshold) {
       // 非常快速的对话：降低欲望值，避免过于频繁回复
-      paceAdjustment = -0.1;
-    } else if (state.avgMessageInterval > 180) {
+      paceAdjustment = config.paceFastAdjustment;
+    } else if (state.avgMessageInterval > config.paceSlowThreshold) {
       // 非常慢速的对话：提高欲望值，避免冷场
-      paceAdjustment = 0.08;
+      paceAdjustment = config.paceSlowAdjustment;
     }
   }
   
