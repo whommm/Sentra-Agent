@@ -208,12 +208,24 @@ export function convertHistoryToMCPFormat(historyConversations) {
       const resultContent = extractXMLTag(msg.content, 'sentra-result');
       
       if (resultContent) {
-        // 先提取并保留 <sentra-user-question> 部分（user 消息在前）
+        // 提取待回复上下文和用户问题
+        const pendingMessages = extractXMLTag(msg.content, 'sentra-pending-messages');
         const userQuestion = extractXMLTag(msg.content, 'sentra-user-question');
+        
         if (userQuestion) {
+          // 构建完整的 user 消息：pending-messages (如果有) + user-question
+          let userContent = '';
+          
+          if (pendingMessages) {
+            // 有对话上下文，放在前面
+            userContent += `<sentra-pending-messages>\n${pendingMessages}\n</sentra-pending-messages>\n\n`;
+          }
+          
+          userContent += `<sentra-user-question>\n${userQuestion}\n</sentra-user-question>`;
+          
           mcpConversation.push({
             role: 'user',
-            content: `<sentra-user-question>\n${userQuestion}\n</sentra-user-question>`
+            content: userContent
           });
         }
         
