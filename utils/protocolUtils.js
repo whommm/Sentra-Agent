@@ -183,3 +183,104 @@ export function parseSentraResponse(response) {
     return fallback;
   }
 }
+
+/**
+ * 转换历史对话为 MCP FC 协议格式
+ * 从 user 消息中提取 <sentra-result>，转换为对应的 <sentra-tools> assistant 消息
+ * 
+ * @param {Array} historyConversations - 原始历史对话数组 [{ role, content }]
+ * @returns {Array} 转换后的对话数组（不包含 system）
+ */
+export function convertHistoryToMCPFormat(historyConversations) {
+  const mcpConversation = [];
+  let convertedCount = 0;
+  let skippedCount = 0;
+  
+  for (const msg of historyConversations) {
+    if (msg.role === 'system') {
+      // MCP 有自己的 system prompt，跳过
+      skippedCount++;
+      continue;
+    }
+    
+    if (msg.role === 'user') {
+      // 检查是否包含 <sentra-result>
+      const resultContent = extractXMLTag(msg.content, 'sentra-result');
+      
+      if (resultContent) {
+        // 先提取并保留 <sentra-user-question> 部分（user 消息在前）
+        const userQuestion = extractXMLTag(msg.content, 'sentra-user-question');
+        if (userQuestion) {
+          mcpConversation.push({
+            role: 'user',
+            content: `<sentra-user-question>\n${userQuestion}\n</sentra-user-question>`
+          });
+        }
+        
+        // 再提取 <sentra-result> 中的工具调用信息（assistant 消息在后）
+        const aiName = extractXMLTag(resultContent, 'aiName');
+        const argsContent = extractXMLTag(resultContent, 'args');
+        
+        if (aiName && argsContent) {
+          // 构建标准的 <sentra-tools> 块（不带注释）
+          const toolsXML = buildSentraToolsFromArgs(aiName, argsContent);
+          
+          mcpConversation.push({
+            role: 'assistant',
+            content: toolsXML
+          });
+          convertedCount++;
+          logger.debug(`转换工具调用: ${aiName}`);
+        }
+      } else {
+        // 没有 <sentra-result>，直接保留原始 user 消息
+        mcpConversation.push(msg);
+      }
+    }
+    
+    if (msg.role === 'assistant') {
+      // 检查是否包含 <sentra-response>（旧格式）
+      const hasResponse = msg.content.includes('<sentra-response>');
+      
+      if (hasResponse) {
+        // 旧格式的 assistant 消息，跳过（因为我们已经从 user 的 sentra-result 中提取了工具调用）
+        skippedCount++;
+        continue;
+      } else {
+        // 新格式或纯文本，保留
+        mcpConversation.push(msg);
+      }
+    }
+  }
+  
+  logger.debug(`MCP格式转换: ${historyConversations.length}条 → ${mcpConversation.length}条 (转换${convertedCount}个工具, 跳过${skippedCount}条)`);
+  return mcpConversation;
+}
+
+/**
+ * 从 <args> 内容构建 <sentra-tools> 块（MCP FC 标准格式）
+ * 
+ * @param {string} aiName - 工具名称
+ * @param {string} argsContent - <args> 标签内的内容
+ * @returns {string} <sentra-tools> XML 字符串
+ */
+function buildSentraToolsFromArgs(aiName, argsContent) {
+  const xmlLines = ['<sentra-tools>'];
+  
+  xmlLines.push(`  <invoke name="${aiName}">`);
+  
+  // 解析 <args> 中的参数
+  // 假设 argsContent 是 XML 格式，如 <city>上海</city><queryType>forecast</queryType>
+  const paramMatches = argsContent.matchAll(/<(\w+)>([^<]*)<\/\1>/g);
+  
+  for (const match of paramMatches) {
+    const paramName = match[1];
+    const paramValue = match[2];
+    xmlLines.push(`    <parameter name="${paramName}">${paramValue}</parameter>`);
+  }
+  
+  xmlLines.push('  </invoke>');
+  xmlLines.push('</sentra-tools>');
+  
+  return xmlLines.join('\n');
+}

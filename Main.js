@@ -4,7 +4,7 @@ import SentraPromptsSDK from 'sentra-prompts';
 import { Agent } from "./agent.js";
 import fs from "fs";
 import WebSocket from 'ws';
-import { buildSentraResultBlock, buildSentraUserQuestionBlock } from './utils/protocolUtils.js';
+import { buildSentraResultBlock, buildSentraUserQuestionBlock, convertHistoryToMCPFormat } from './utils/protocolUtils.js';
 import { smartSend } from './utils/sendUtils.js';
 import { saveMessageCache, cleanupExpiredCache } from './utils/messageCache.js';
 import SentraEmo from './sentra-emo/sdk/index.js';
@@ -354,12 +354,18 @@ async function handleOneMessage(msg, taskId) {
     // objective 和 conversation 都使用相同的拼接内容
     // 确保bot在所有阶段都能看到完整的上下文
     const userObjective = buildConcatenatedContent(senderMessages);
-    const conversation = [
-      { role: 'user', content: userObjective },
-    ];
-
-    // 获取历史对话
+    
+    // conversation: 构建 MCP FC 协议格式的对话上下文
+    // 包含：1. 历史工具调用上下文 2. 当前用户消息
     const historyConversations = historyManager.getConversationHistory(groupId);
+    const mcpHistory = convertHistoryToMCPFormat(historyConversations);
+    
+    const conversation = [
+      ...mcpHistory,  // 历史上下文（user 的 sentra-user-question + assistant 的 sentra-tools）
+      { role: 'user', content: userObjective }  // 当前任务
+    ];
+    
+    logger.debug(`MCP上下文: ${groupId} 原始历史${historyConversations.length}条 → 转换后${mcpHistory.length}条 + 当前1条 = 总计${conversation.length}条`);
     
     // 获取用户画像（如果启用）
     let personaContext = '';
@@ -533,8 +539,10 @@ async function handleOneMessage(msg, taskId) {
         
         const fullContext = content + '\n\n' + currentUserContent;
         
-        conversations.push({ role: 'user', content: fullContext });
+        // 更新 currentUserContent 为包含工具结果的完整上下文，确保保存到历史记录时不丢失工具结果
+        currentUserContent = fullContext;
         
+        conversations.push({ role: 'user', content: fullContext });
         const result = await chatWithRetry(conversations, MAIN_AI_MODEL, groupId);
         
         if (!result.success) {
