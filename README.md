@@ -157,12 +157,12 @@ npm run service:monit      # 实时监控
 ##### 1. 环境准备与运行桌面应用
 首先安装各个板块所需的依赖项，完成后运行桌面应用程序。
 
-![安装各个板块依赖](https://filesystem.site/cdn/20251120/G1nU3RspB0r24XDvnlNxjUlMyS5NVx.png)
+![安装各个板块依赖](https://filesystem.site/cdn/20251120/4bQGe8rQPLC7Wm9d4me2A7f6h6VRV4.png)
 
 ##### 2. 构建通讯服务 SDK
 构建 NC 适配器的实时流通讯服务 SDK，以便进行数据交互。
 
-![实时流通讯SDK构建](https://filesystem.site/cdn/20251120/IydK2zN1qx6Cbbop7IgcuNPvIwkqvG.png)
+![实时流通讯SDK构建](https://filesystem.site/cdn/20251120/06TEqX78XLQpdRdBwPhaFfbj5KXLVZ.png)
 
 ##### 3. 修改配置 (可选)
 如需修改板块配置或 Mcp 插件配置，请按以下步骤操作：
@@ -170,14 +170,14 @@ npm run service:monit      # 实时监控
 2.  选择需要修改配置的应用程序。
 3.  修改完成后，点击 **保存**。
 
-![点击启动台](https://filesystem.site/cdn/20251120/hDr0yN0ai6H3iFbFqHeB1E407mpweY.png)
+![点击启动台](https://filesystem.site/cdn/20251120/Hg1s5SnIsWbhJ0Mqf1isXLhUBNB0YF.png)
 ![选择需要修改的应用配置](https://filesystem.site/cdn/20251120/z3UTXWSyLJ7cUF29vnjR4ExFinGI4j.png)
 ![开始配置，保存](https://filesystem.site/cdn/20251120/kVaDvIv8fd8eYQ1uvHalp1XHwdWz0b.png)
 
 ##### 4. 启动 Sentra
 确认配置无误后，点击启动按钮运行 Sentra。
 
-![点击启动](https://filesystem.site/cdn/20251120/IKDEUBiTXYtJ8FACdbAyqD47eo7oXr.png)
+![点击启动](https://filesystem.site/cdn/20251120/qZvWBHiu5zKPLacOIFHIMnBevoJntY.png)
 
 ---
 
