@@ -193,7 +193,7 @@ function App() {
       const response = await fetch('/api/scripts/bootstrap', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ args: [] }),
+        body: JSON.stringify({ args: ['--force'] }),
       });
       const data = await response.json();
 
