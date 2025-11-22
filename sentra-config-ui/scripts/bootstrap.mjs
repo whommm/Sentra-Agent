@@ -104,12 +104,41 @@ function choosePM(preferred) {
   throw new Error('No package manager found. Please install pnpm or npm or cnpm, or pass --pm option.');
 }
 
-async function installNode(dir, pm, dryRun) {
+function resolveMirrorProfileDefaults() {
+  const profile = String(process.env.MIRROR_PROFILE || '').toLowerCase();
+  const isChina = profile === 'china' || profile === 'cn' || profile === 'tsinghua' || profile === 'npmmirror' || profile === 'taobao';
+  return {
+    npmRegistryDefault: isChina ? 'https://registry.npmmirror.com/' : '',
+    pipIndexDefault: isChina ? 'https://pypi.tuna.tsinghua.edu.cn/simple' : '',
+  };
+}
+
+function resolveNpmRegistry() {
+  const { npmRegistryDefault } = resolveMirrorProfileDefaults();
+  // Prefer explicit env, fallback to profile default, otherwise undefined to let PM default
+  return (
+    process.env.NPM_REGISTRY ||
+    process.env.NPM_CONFIG_REGISTRY ||
+    process.env.npm_config_registry ||
+    npmRegistryDefault ||
+    ''
+  );
+}
+
+function parseTrustedHostsFromEnv() {
+  const raw = process.env.PIP_TRUSTED_HOSTS || process.env.PIP_TRUSTED_HOST || '';
+  return raw
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean);
+}
+
+async function installNode(dir, pm, dryRun, registry) {
   const label = path.relative(repoRoot, dir) || '.';
   const spinner = ora(`Installing dependencies for ${chalk.bold(label)}...`).start();
 
   if (dryRun) {
-    spinner.info(chalk.yellow(`[DRY] ${pm} install (include dev) @ ${label}`));
+    spinner.info(chalk.yellow(`[DRY] ${pm} install (include dev) @ ${label}${registry ? ` [registry=${registry}]` : ''}`));
     return;
   }
 
@@ -117,7 +146,12 @@ async function installNode(dir, pm, dryRun) {
     const args = ['install'];
     if (pm === 'pnpm') args.push('--prod=false');
     else args.push('--production=false');
-    await run(pm, args, dir, { npm_config_production: 'false' });
+    const extraEnv = { npm_config_production: 'false' };
+    if (registry) {
+      extraEnv.npm_config_registry = registry;
+      extraEnv.NPM_CONFIG_REGISTRY = registry; // some tools read upper-case
+    }
+    await run(pm, args, dir, extraEnv);
     spinner.succeed(chalk.green(`Installed dependencies for ${label}`));
   } catch (e) {
     spinner.fail(chalk.red(`Failed to install dependencies for ${label}`));
@@ -125,7 +159,7 @@ async function installNode(dir, pm, dryRun) {
   }
 }
 
-async function ensureNodeProjects(pm, force, dryRun) {
+async function ensureNodeProjects(pm, force, dryRun, registry) {
   console.log(boxen(chalk.bold.blue('Node.js Dependencies'), { padding: 1, borderStyle: 'round' }));
 
   const projects = new Set();
@@ -146,7 +180,7 @@ async function ensureNodeProjects(pm, force, dryRun) {
   }
   for (const r of results) {
     if (!r.installed || force) {
-      await installNode(r.dir, pm, dryRun);
+      await installNode(r.dir, pm, dryRun, registry);
     } else {
       const label = path.relative(repoRoot, r.dir) || '.';
       console.log(chalk.gray(`[Node] Skipped (already installed) @ ${label}`));
@@ -181,22 +215,26 @@ function hasUv() {
 async function installRequirementsWithFallback(vpy, emoDir, pipIndex, dryRun) {
   const attempts = [];
   const basePipArgs = ['-m', 'pip', 'install', '-r', 'requirements.txt', '--retries', '3', '--timeout', '60'];
+  const extraIndex = (process.env.PIP_EXTRA_INDEX_URL || '').trim();
+  const trustedHosts = parseTrustedHostsFromEnv();
+  const trustedArgs = trustedHosts.flatMap(h => ['--trusted-host', h]);
+
   if (pipIndex) {
     attempts.push({
       cmd: vpy,
-      args: [...basePipArgs, '-i', pipIndex, '--extra-index-url', 'https://pypi.org/simple'],
-      label: `pip (-i ${pipIndex} + extra-index pypi.org)`
+      args: [...basePipArgs, '-i', pipIndex, ...(extraIndex ? ['--extra-index-url', extraIndex] : ['--extra-index-url', 'https://pypi.org/simple']), ...trustedArgs],
+      label: `pip (-i ${pipIndex}${extraIndex ? ` + extra-index ${extraIndex}` : ' + extra-index pypi.org'})`
     });
   }
   attempts.push({
     cmd: vpy,
-    args: [...basePipArgs, '-i', 'https://pypi.org/simple'],
+    args: [...basePipArgs, '-i', 'https://pypi.org/simple', ...trustedArgs],
     label: 'pip (official pypi.org)'
   });
   if (hasUv()) {
     attempts.push({
       cmd: 'uv',
-      args: ['pip', 'install', '-r', 'requirements.txt', '--python', vpy, '--index-url', (pipIndex || 'https://pypi.org/simple')],
+      args: ['pip', 'install', '-r', 'requirements.txt', '--python', vpy, '--index-url', (pipIndex || 'https://pypi.org/simple')].concat(extraIndex ? ['--extra-index-url', extraIndex] : []),
       label: 'uv pip (--python venv)'
     });
   }
@@ -265,7 +303,9 @@ async function ensureEmoPython(pyChoice, pipIndex, force, dryRun) {
   }
 
   try {
-    await run(vpy, ['-m', 'pip', 'install', '--upgrade', 'pip', '-i', 'https://pypi.org/simple'], emoDir);
+    const trustedHosts = parseTrustedHostsFromEnv();
+    const trustedArgs = trustedHosts.flatMap(h => ['--trusted-host', h]);
+    await run(vpy, ['-m', 'pip', 'install', '--upgrade', 'pip', '-i', 'https://pypi.org/simple', ...trustedArgs], emoDir);
   } catch { }
 
   console.log(chalk.blue('Installing requirements for sentra-emo...'));
@@ -276,12 +316,15 @@ async function main() {
   console.log(chalk.bold.magenta('🚀 Sentra Agent Bootstrap'));
   const opts = parseArgs();
   const pm = choosePM(opts.pm);
+  const { pipIndexDefault } = resolveMirrorProfileDefaults();
+  const resolvedPipIndex = (opts.pipIndex || pipIndexDefault || '').trim();
+  const npmRegistry = resolveNpmRegistry();
 
   if (opts.only === 'all' || opts.only === 'node') {
-    await ensureNodeProjects(pm, opts.force, opts.dryRun);
+    await ensureNodeProjects(pm, opts.force, opts.dryRun, npmRegistry);
   }
   if (opts.only === 'all' || opts.only === 'python') {
-    await ensureEmoPython(opts.py, opts.pipIndex, opts.force, opts.dryRun);
+    await ensureEmoPython(opts.py, resolvedPipIndex, opts.force, opts.dryRun);
   }
   console.log('\n' + chalk.green.bold('✨ Setup completed successfully!'));
 }

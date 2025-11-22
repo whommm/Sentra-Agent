@@ -1,18 +1,24 @@
 import React from 'react';
 import { IoWifi, IoBatteryFull, IoApps } from 'react-icons/io5';
-import { DesktopIcon } from '../types/ui';
+import { DesktopIcon, AppFolder } from '../types/ui';
+import { IOSAppFolder } from './IOSAppFolder';
 
 interface IOSHomeScreenProps {
     icons: DesktopIcon[];
+    folders: AppFolder[];
     onLaunch: (icon: DesktopIcon) => void;
     wallpaper: string;
     onLaunchpadOpen: () => void;
     dockExtra: { id: string; name: string; icon: React.ReactNode; onClick: () => void }[];
 }
 
-export const IOSHomeScreen: React.FC<IOSHomeScreenProps> = ({ icons, onLaunch, wallpaper, onLaunchpadOpen, dockExtra }) => {
-    // Use real icons for the grid (limit to 12 to prevent overflow)
-    const gridIcons = icons.slice(0, 12);
+export const IOSHomeScreen: React.FC<IOSHomeScreenProps> = ({ icons, folders, onLaunch, wallpaper, onLaunchpadOpen, dockExtra }) => {
+    // Combine folders and icons, folders first
+    const allItems = [...folders, ...icons];
+    // Use real icons for the grid (limit to 24 to prevent overflow)
+    const gridItems = allItems.slice(0, 24);
+
+    const [openFolderId, setOpenFolderId] = React.useState<string | null>(null);
 
     // Dock: Launchpad + dynamic top-used apps from props
     const dockIcons = [
@@ -63,14 +69,35 @@ export const IOSHomeScreen: React.FC<IOSHomeScreenProps> = ({ icons, onLaunch, w
 
             {/* Grid Area */}
             <div className="ios-grid">
-                {gridIcons.map(icon => (
-                    <div key={icon.id} className="ios-icon-container" onClick={() => onLaunch(icon)}>
-                        <div className="ios-icon" style={{ background: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(10px)' }}>
-                            {icon.icon}
-                        </div>
-                        <div className="ios-label">{icon.name}</div>
-                    </div>
-                ))}
+                {gridItems.map(item => {
+                    if ('apps' in item) {
+                        // It's a folder
+                        return (
+                            <div key={item.id} className="ios-icon-container">
+                                <IOSAppFolder
+                                    folder={item}
+                                    isOpen={openFolderId === item.id}
+                                    onOpen={() => setOpenFolderId(item.id)}
+                                    onClose={() => setOpenFolderId(null)}
+                                    onAppClick={(_appId, onClick) => {
+                                        onClick();
+                                        setOpenFolderId(null);
+                                    }}
+                                />
+                            </div>
+                        );
+                    } else {
+                        // It's an icon
+                        return (
+                            <div key={item.id} className="ios-icon-container" onClick={() => onLaunch(item)}>
+                                <div className="ios-icon" style={{ background: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(10px)' }}>
+                                    {item.icon}
+                                </div>
+                                <div className="ios-label">{item.name}</div>
+                            </div>
+                        );
+                    }
+                })}
             </div>
 
             {/* Dock */}

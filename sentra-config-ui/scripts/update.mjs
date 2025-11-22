@@ -96,7 +96,26 @@ function collectAllNodeProjects() {
     return Array.from(projects);
 }
 
-async function execCommand(command, args, cwd) {
+function resolveMirrorProfileDefaults() {
+    const profile = String(process.env.MIRROR_PROFILE || '').toLowerCase();
+    const isChina = profile === 'china' || profile === 'cn' || profile === 'tsinghua' || profile === 'npmmirror' || profile === 'taobao';
+    return {
+        npmRegistryDefault: isChina ? 'https://registry.npmmirror.com/' : '',
+    };
+}
+
+function resolveNpmRegistry() {
+    const { npmRegistryDefault } = resolveMirrorProfileDefaults();
+    return (
+        process.env.NPM_REGISTRY ||
+        process.env.NPM_CONFIG_REGISTRY ||
+        process.env.npm_config_registry ||
+        npmRegistryDefault ||
+        ''
+    );
+}
+
+async function execCommand(command, args, cwd, extraEnv = {}) {
     return new Promise((resolve, reject) => {
         const proc = spawn(command, args, {
             cwd,
@@ -104,6 +123,7 @@ async function execCommand(command, args, cwd) {
             shell: true,
             env: {
                 ...process.env,
+                ...extraEnv,
                 FORCE_COLOR: '3',
             }
         });
@@ -190,11 +210,17 @@ async function update() {
         // Step 4: Install dependencies for projects that need it
         if (projectsToInstall.length > 0) {
             console.log(chalk.cyan(`\n📥 Installing dependencies for ${projectsToInstall.length} project(s)...\n`));
+            const npmRegistry = resolveNpmRegistry();
 
             for (const { dir, label, reason } of projectsToInstall) {
                 spinner.start(`Installing ${label} (${reason})...`);
                 try {
-                    await execCommand('npm', ['install'], dir);
+                    const env = {};
+                    if (npmRegistry) {
+                        env.npm_config_registry = npmRegistry;
+                        env.NPM_CONFIG_REGISTRY = npmRegistry;
+                    }
+                    await execCommand('npm', ['install'], dir, env);
                     spinner.succeed(`Installed ${label}`);
                 } catch (error) {
                     spinner.fail(`Failed to install ${label}`);

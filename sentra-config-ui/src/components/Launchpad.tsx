@@ -164,7 +164,7 @@ export const Launchpad: React.FC<LaunchpadProps> = ({ isOpen, onClose, items }) 
                   setSearchTerm(e.target.value);
                   setCurrentPage(0);
                 }}
-                autoFocus
+                autoFocus={!isMobileView}
               />
             </div>
 

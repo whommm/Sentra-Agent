@@ -3,6 +3,8 @@ import { EventEmitter } from 'events';
 import path from 'path';
 import os from 'os';
 import { execSync } from 'child_process';
+import fs from 'fs';
+import dotenv from 'dotenv';
 
 interface ScriptProcess {
     id: string;
@@ -36,10 +38,22 @@ export class ScriptRunner {
         const emitter = new EventEmitter();
 
         const scriptPath = path.join(process.cwd(), 'scripts', `${scriptName}.mjs`);
+
+        // Load latest .env from UI project to reflect runtime changes without server restart
+        let runtimeEnv: Record<string, string> = {};
+        try {
+            const envPath = path.join(process.cwd(), '.env');
+            if (fs.existsSync(envPath)) {
+                const parsed = dotenv.parse(fs.readFileSync(envPath));
+                runtimeEnv = parsed as unknown as Record<string, string>;
+            }
+        } catch {}
+
         const proc = spawn('node', [scriptPath, ...args], {
             cwd: process.cwd(),
             env: {
                 ...process.env,
+                ...runtimeEnv,
                 FORCE_COLOR: '3',
                 TERM: 'xterm-256color',
                 COLORTERM: 'truecolor',

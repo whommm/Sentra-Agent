@@ -4,6 +4,8 @@ import styles from './EnvEditor.module.css';
 import { IoAdd, IoSave, IoTrash, IoInformationCircle, IoSearch, IoWarning } from 'react-icons/io5';
 import Editor from '@monaco-editor/react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { SafeInput } from './SafeInput';
+import { SafeZone } from './SafeZone';
 
 interface EnvEditorProps {
   appName?: string;
@@ -40,13 +42,19 @@ export const EnvEditor: React.FC<EnvEditorProps> = ({
     );
 
   return (
-    <div className={`${styles.container} ${isMobile ? styles.mobileContainer : ''}`} data-theme={theme}>
+    <div
+      className={`${styles.container} ${isMobile ? styles.mobileContainer : ''}`}
+      data-theme={theme}
+      onContextMenu={(e) => {
+        e.stopPropagation();
+      }}
+    >
       {!isMobile && (
         <div className={styles.sidebar}>
           <div className={styles.sidebarHeader}>
             <div className={styles.searchWrapper}>
               <IoSearch className={styles.searchIcon} />
-              <input
+              <SafeInput
                 type="text"
                 placeholder="搜索配置..."
                 value={searchTerm}
@@ -71,7 +79,7 @@ export const EnvEditor: React.FC<EnvEditorProps> = ({
             <>
               <div className={styles.mobileSearchInputBox}>
                 <IoSearch className={styles.searchIcon} />
-                <input
+                <SafeInput
                   type="text"
                   placeholder="搜索配置..."
                   value={searchTerm}
@@ -140,7 +148,7 @@ export const EnvEditor: React.FC<EnvEditorProps> = ({
                   <div className={styles.rowHeader}>
                     <div className={styles.keyInfo}>
                       {v.isNew ? (
-                        <input
+                        <SafeInput
                           className={styles.newKeyInput}
                           value={v.key}
                           onChange={(e) => onUpdate(v.originalIndex, 'key', e.target.value)}
@@ -151,7 +159,7 @@ export const EnvEditor: React.FC<EnvEditorProps> = ({
                         <div className={styles.keyName}>{v.key}</div>
                       )}
                       <div className={styles.keyComment}>
-                        <input
+                        <SafeInput
                           className={styles.commentInput}
                           value={v.comment || ''}
                           onChange={(e) => onUpdate(v.originalIndex, 'comment', e.target.value)}
@@ -169,32 +177,34 @@ export const EnvEditor: React.FC<EnvEditorProps> = ({
                   </div>
 
                   <div className={styles.editorWrapper}>
-                    <Editor
-                      height="32px"
-                      defaultLanguage="plaintext"
-                      value={v.value}
-                      onChange={(value) => onUpdate(v.originalIndex, 'value', value || '')}
-                      options={{
-                        minimap: { enabled: false },
-                        lineNumbers: 'off',
-                        glyphMargin: false,
-                        folding: false,
-                        lineDecorationsWidth: 0,
-                        lineNumbersMinChars: 0,
-                        renderLineHighlight: 'none',
-                        scrollbar: { vertical: 'hidden', horizontal: 'hidden' },
-                        overviewRulerBorder: false,
-                        hideCursorInOverviewRuler: true,
-                        contextmenu: false,
-                        fontFamily: "'Consolas', 'Monaco', 'Courier New', monospace",
-                        fontSize: 13,
-                        scrollBeyondLastLine: false,
-                        automaticLayout: true,
-                        fixedOverflowWidgets: true,
-                        padding: { top: 6, bottom: 6 }
-                      }}
-                      theme={theme === 'dark' ? 'vs-dark' : 'light'}
-                    />
+                    <SafeZone style={{ height: '100%' }}>
+                      <Editor
+                        height="32px"
+                        defaultLanguage="plaintext"
+                        value={v.value}
+                        onChange={(value) => onUpdate(v.originalIndex, 'value', value || '')}
+                        options={{
+                          minimap: { enabled: false },
+                          lineNumbers: 'off',
+                          glyphMargin: false,
+                          folding: false,
+                          lineDecorationsWidth: 0,
+                          lineNumbersMinChars: 0,
+                          renderLineHighlight: 'none',
+                          scrollbar: { vertical: 'hidden', horizontal: 'hidden' },
+                          overviewRulerBorder: false,
+                          hideCursorInOverviewRuler: true,
+                          contextmenu: false,
+                          fontFamily: "'Consolas', 'Monaco', 'Courier New', monospace",
+                          fontSize: 13,
+                          scrollBeyondLastLine: false,
+                          automaticLayout: true,
+                          fixedOverflowWidgets: true,
+                          padding: { top: 6, bottom: 6 }
+                        }}
+                        theme={theme === 'dark' ? 'vs-dark' : 'light'}
+                      />
+                    </SafeZone>
                   </div>
                 </div>
               ))}

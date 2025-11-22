@@ -10,9 +10,10 @@ export type UseDesktopWindowsParams = {
   addToast: (type: ToastMessage['type'], title: string, message?: string) => void;
   // When saving finishes, we need to refresh configs
   loadConfigs: (silent?: boolean) => Promise<void> | void;
+  onLogout?: () => void;
 };
 
-export function useDesktopWindows({ setSaving, addToast, loadConfigs }: UseDesktopWindowsParams) {
+export function useDesktopWindows({ setSaving, addToast, loadConfigs, onLogout }: UseDesktopWindowsParams) {
   const [openWindows, setOpenWindows] = useState<DeskWindow[]>(() => {
     try {
       const saved = localStorage.getItem('sentra_open_windows');
@@ -130,6 +131,13 @@ export function useDesktopWindows({ setSaving, addToast, loadConfigs }: UseDeskt
       }
       addToast('success', '保存成功', `已更新 ${getDisplayName(win.file.name)} 配置`);
       await loadConfigs(true);
+
+      // Trigger logout after successful save to force re-login
+      if (onLogout) {
+        setTimeout(() => {
+          onLogout();
+        }, 1500); // Small delay to let the toast show
+      }
     } catch (error) {
       addToast('error', '保存失败', error instanceof Error ? error.message : '未知错误');
     } finally {

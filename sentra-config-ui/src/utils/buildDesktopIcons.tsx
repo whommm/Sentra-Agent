@@ -13,13 +13,13 @@ import {
 function createFolderIcon(apps: DesktopIcon[], bgColor: string) {
     return (
         <div style={{
-            width: 70,
-            height: 70,
-            borderRadius: '18px',
+            width: 60,
+            height: 60,
+            borderRadius: '14px',
             background: `linear-gradient(135deg, ${bgColor}20 0%, ${bgColor}40 100%)`,
             backdropFilter: 'blur(10px)',
             border: `2px solid ${bgColor}60`,
-            padding: 8,
+            padding: 6,
             display: 'grid',
             gridTemplateColumns: 'repeat(2, 1fr)',
             gridTemplateRows: 'repeat(2, 1fr)',
@@ -208,7 +208,7 @@ export function buildDesktopIcons(
     return [
         {
             id: 'desktop-bootstrap',
-            name: 'Bootstrap',
+            name: '安装依赖',
             icon: <AppIconWrapper
                 bg="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
                 shadow="0 8px 16px rgba(102, 126, 234, 0.4), inset 0 1px 2px rgba(255,255,255,0.3)"
@@ -223,7 +223,7 @@ export function buildDesktopIcons(
         },
         {
             id: 'desktop-start',
-            name: 'Start',
+            name: '启动Sentra',
             icon: <AppIconWrapper
                 bg="linear-gradient(135deg, #42a5f5 0%, #1976d2 100%)"
                 shadow="0 8px 16px rgba(66, 165, 245, 0.4), inset 0 1px 2px rgba(255,255,255,0.3)"
@@ -238,7 +238,7 @@ export function buildDesktopIcons(
         },
         {
             id: 'desktop-update',
-            name: 'Update',
+            name: '更新',
             icon: <AppIconWrapper
                 bg="linear-gradient(135deg, #66bb6a 0%, #43a047 100%)"
                 shadow="0 8px 16px rgba(102, 187, 106, 0.4), inset 0 1px 2px rgba(255,255,255,0.3)"
@@ -253,7 +253,7 @@ export function buildDesktopIcons(
         },
         {
             id: 'desktop-force-update',
-            name: 'Force Update',
+            name: '强制更新',
             icon: <AppIconWrapper
                 bg="linear-gradient(135deg, #ef5350 0%, #c62828 100%)"
                 shadow="0 8px 16px rgba(239, 83, 80, 0.4), inset 0 1px 2px rgba(255,255,255,0.3)"
@@ -268,7 +268,7 @@ export function buildDesktopIcons(
         },
         {
             id: 'desktop-napcat-build',
-            name: 'NC Build',
+            name: '构建NC SDK',
             icon: <AppIconWrapper
                 bg="linear-gradient(135deg, #ffa726 0%, #f57c00 100%)"
                 shadow="0 8px 16px rgba(255, 167, 38, 0.4), inset 0 1px 2px rgba(255,255,255,0.3)"
@@ -283,7 +283,7 @@ export function buildDesktopIcons(
         },
         {
             id: 'desktop-napcat-start',
-            name: 'NC Start',
+            name: '启动NC流服务',
             icon: <AppIconWrapper
                 bg="linear-gradient(135deg, #ab47bc 0%, #7b1fa2 100%)"
                 shadow="0 8px 16px rgba(171, 71, 188, 0.4), inset 0 1px 2px rgba(255,255,255,0.3)"

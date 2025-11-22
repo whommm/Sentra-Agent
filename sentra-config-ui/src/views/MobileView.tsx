@@ -5,13 +5,14 @@ import { TerminalWindow } from '../components/TerminalWindow';
 import { ToastContainer, ToastMessage } from '../components/Toast';
 import { IoChevronBack } from 'react-icons/io5';
 import { getDisplayName, getIconForType } from '../utils/icons';
-import { FileItem, IOSEditorWin, DesktopIcon, TerminalWin } from '../types/ui';
+import { FileItem, IOSEditorWin, DesktopIcon, TerminalWin, AppFolder } from '../types/ui';
 
 export type MobileViewProps = {
   allItems: FileItem[];
   usageCounts: Record<string, number>;
   recordUsage: (key: string) => void;
   desktopIcons: DesktopIcon[];
+  desktopFolders: AppFolder[];
   launchpadOpen: boolean;
   setLaunchpadOpen: (open: boolean) => void;
   handleIOSOpenWindow: (file: FileItem) => void;
@@ -37,6 +38,7 @@ export function MobileView(props: MobileViewProps) {
     usageCounts,
     recordUsage,
     desktopIcons,
+    desktopFolders,
     launchpadOpen,
     setLaunchpadOpen,
     handleIOSOpenWindow,
@@ -73,6 +75,7 @@ export function MobileView(props: MobileViewProps) {
     <>
       <IOSHomeScreen
         icons={desktopIcons}
+        folders={desktopFolders}
         onLaunch={(icon) => icon.onClick()}
         wallpaper="/wallpapers/ios-default.png"
         onLaunchpadOpen={() => setLaunchpadOpen(true)}

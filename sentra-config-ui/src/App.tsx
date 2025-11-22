@@ -56,7 +56,7 @@ function App() {
     handleVarChange,
     handleAddVar,
     handleDeleteVar,
-  } = useDesktopWindows({ setSaving, addToast, loadConfigs });
+  } = useDesktopWindows({ setSaving, addToast, loadConfigs, onLogout: handleLogout });
 
   const [launchpadOpen, setLaunchpadOpen] = useState(false);
 
@@ -212,6 +212,13 @@ function App() {
     return false;
   };
 
+  function handleLogout() {
+    sessionStorage.removeItem('sentra_auth_token');
+    setIsAuthenticated(false);
+    setOpenWindows([]);
+    setConfigData(null);
+  }
+
   // openWindows persistence handled by useDesktopWindows
 
   // dockFavorites persistence handled by useDockFavorites
@@ -231,9 +238,16 @@ function App() {
           : data.plugins.find(p => p.name === w.file.name);
 
         if (found) {
+          // Update file content AND editedVars to ensure editor sees new content
+          // If the user was editing, we might overwrite their unsaved changes here if we are not careful.
+          // But loadConfigs is usually called after save or on load.
+          // If we want to preserve unsaved changes, we should check if dirty.
+          // However, the requirement is "refresh config shows old", implying we want to see the NEW value.
+          // So we sync editedVars with the new file variables.
           return {
             ...w,
-            file: { ...found, type: w.file.type }
+            file: { ...found, type: w.file.type },
+            editedVars: found.variables ? [...found.variables] : []
           };
         }
         return w;
@@ -382,6 +396,7 @@ function App() {
         terminalWindows={terminalWindows}
         handleMinimizeTerminal={handleMinimizeTerminal}
         handleCloseTerminal={handleCloseTerminal}
+        desktopFolders={desktopFolders}
       />
     );
   }
