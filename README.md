@@ -62,8 +62,6 @@ Sentra Agent 是一个为生产环境设计的 AI Agent 框架。我们理解构
 我们提供了跨平台的前置依赖检测脚本，会自动按需安装/跳过以下组件：Git、Node.js 18+、Python 3.10+、Redis、PM2（可选 Neo4j）。
 
 ```bash
-git clone https://github.com/JustForSO/Sentra-Agent.git
-cd Sentra-Agent
 npm run install:prereqs
 ```
 
