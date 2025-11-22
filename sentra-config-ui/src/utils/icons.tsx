@@ -1,10 +1,10 @@
 import React from 'react';
-import { 
-  FcFolder, 
-  FcSettings, 
-  FcImageFile, 
-  FcVideoFile, 
-  FcAudioFile, 
+import {
+  FcFolder,
+  FcSettings,
+  FcImageFile,
+  FcVideoFile,
+  FcAudioFile,
   FcDocument,
   FcGlobe,
   FcSearch,
@@ -24,11 +24,11 @@ import {
   FcHome
 } from 'react-icons/fc';
 import { WiDaySunny } from 'react-icons/wi';
-import { 
-  IoLogoGithub, 
-  IoLogoYoutube, 
-  IoChatbubbles, 
-  IoPeople, 
+import {
+  IoLogoGithub,
+  IoLogoYoutube,
+  IoChatbubbles,
+  IoPeople,
   IoPerson,
   IoCloud,
   IoTerminal,
@@ -37,7 +37,17 @@ import {
 import { BsRobot } from 'react-icons/bs';
 
 // Helper to wrap icon in a macOS style app shape
-export const AppIconWrapper = ({ children, color = '#fff', bg = 'linear-gradient(180deg, #ffffff 0%, #f0f0f0 100%)' }: { children: React.ReactNode, color?: string, bg?: string }) => (
+export const AppIconWrapper = ({
+  children,
+  color = '#fff',
+  bg = 'linear-gradient(180deg, #ffffff 0%, #f0f0f0 100%)',
+  shadow = '0 2px 5px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.4)'
+}: {
+  children: React.ReactNode,
+  color?: string,
+  bg?: string,
+  shadow?: string
+}) => (
   <div style={{
     width: '100%',
     height: '100%',
@@ -46,7 +56,7 @@ export const AppIconWrapper = ({ children, color = '#fff', bg = 'linear-gradient
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    boxShadow: '0 2px 5px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.4)',
+    boxShadow: shadow,
     color: color,
     fontSize: '2.5em'
   }}>
@@ -57,7 +67,8 @@ export const AppIconWrapper = ({ children, color = '#fff', bg = 'linear-gradient
 export const getDisplayName = (name: string): string => {
   const n = name.toLowerCase();
   const mapping: Record<string, string> = {
-    '.': '根目录配置',
+    '.': '对话配置',
+    'sentra-config-ui': 'Webui配置',
     'utils/emoji-stickers': '表情包配置',
     'av_transcribe': '音频转录',
     'mindmap_gen': '思维导图',
@@ -128,6 +139,7 @@ export const getIconForType = (name: string, type: 'module' | 'plugin'): React.R
 
   // Core Modules
   if (n.includes('sentra-prompts')) return <AppIconWrapper bg="#4A90E2"><BsRobot color="white" /></AppIconWrapper>;
+  if (n.includes('sentra-config-ui')) return <AppIconWrapper bg="#4A4A4A"><FcHome /></AppIconWrapper>;
   if (n.includes('sentra-mcp')) return <AppIconWrapper bg="#50E3C2"><IoApps color="white" /></AppIconWrapper>;
   if (n.includes('sentra-emo')) return <AppIconWrapper bg="#F5A623"><FcStart /></AppIconWrapper>;
   if (n.includes('sentra-adapter')) return <AppIconWrapper bg="#9013FE"><FcSettings /></AppIconWrapper>;

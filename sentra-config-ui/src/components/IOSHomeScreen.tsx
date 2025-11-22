@@ -1,6 +1,6 @@
 import React from 'react';
 import { IoWifi, IoBatteryFull, IoApps } from 'react-icons/io5';
-import { DesktopIcon } from '../App';
+import { DesktopIcon } from '../types/ui';
 
 interface IOSHomeScreenProps {
     icons: DesktopIcon[];

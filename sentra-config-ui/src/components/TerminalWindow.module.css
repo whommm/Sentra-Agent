@@ -12,15 +12,20 @@
 
 .terminal {
     flex: 1;
+    min-width: 0; /* allow flex child to shrink to container width */
     padding: 12px;
     overflow-y: auto;
-    overflow-x: auto;
+    overflow-x: hidden; /* avoid horizontal scrollbar */
+
     font-family: 'Cascadia Mono', 'Consolas', 'Fira Code', 'JetBrains Mono', 'Noto Sans Mono', 'Noto Sans Symbols 2', 'Menlo', 'Monaco', 'Courier New', monospace;
     font-size: 13px;
     line-height: 1.4;
     color: #fff;
-    white-space: pre; /* keep box-drawing alignment */
-    word-break: normal;
+    /* wrap long lines but preserve spacing/newlines */
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
     touch-action: pan-y;

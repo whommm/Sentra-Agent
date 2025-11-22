@@ -53,7 +53,7 @@ export async function scriptRoutes(fastify: FastifyInstance) {
         }
     });
 
-    // Execute update script
+    // Execute update script (supports args: [] (normal) or ['force'] (force update))
     fastify.post<{
         Body: { args?: string[] };
     }>('/api/scripts/update', async (request, reply) => {
@@ -110,7 +110,7 @@ export async function scriptRoutes(fastify: FastifyInstance) {
         });
 
         if (typeof (reply.raw as any).flushHeaders === 'function') {
-            try { (reply.raw as any).flushHeaders(); } catch {}
+            try { (reply.raw as any).flushHeaders(); } catch { }
         }
 
         // Kick-start the SSE stream with an initial comment to open the pipe immediately
@@ -120,7 +120,7 @@ export async function scriptRoutes(fastify: FastifyInstance) {
         const heartbeat = setInterval(() => {
             try {
                 reply.raw.write(`event: ping\n` + `data: {}\n\n`);
-            } catch {}
+            } catch { }
         }, 15000);
 
         // Send existing output

@@ -3,11 +3,15 @@ import { join, resolve } from 'path';
 import { ModuleConfig, PluginConfig, ConfigData } from '../types';
 import { readEnvFile } from './envParser';
 
-const ROOT_DIR = resolve(process.cwd(), '..');
+// Resolve root directory dynamically at runtime so env can override
+function getRootDir(): string {
+  return resolve(process.cwd(), process.env.SENTRA_ROOT || '..');
+}
 
 // 要扫描的模块目录
 const MODULES = [
   '.', // 根目录 .env / .env.example
+  'sentra-config-ui', // 本项目配置（客户端/服务端端口、CORS等）
   'sentra-prompts',
   'sentra-mcp',
   'sentra-rag',
@@ -20,7 +24,7 @@ const MODULES = [
  * 扫描单个模块的配置
  */
 function scanModule(moduleName: string): ModuleConfig {
-  const modulePath = join(ROOT_DIR, moduleName);
+  const modulePath = join(getRootDir(), moduleName);
   const envPath = join(modulePath, '.env');
   const examplePath = join(modulePath, '.env.example');
 
@@ -48,7 +52,7 @@ function scanModule(moduleName: string): ModuleConfig {
  * 扫描插件目录
  */
 function scanPlugins(): PluginConfig[] {
-  const pluginsDir = join(ROOT_DIR, 'sentra-mcp', 'plugins');
+  const pluginsDir = join(getRootDir(), 'sentra-mcp', 'plugins');
   if (!existsSync(pluginsDir)) {
     return [];
   }

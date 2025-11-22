@@ -17,7 +17,7 @@ interface ScriptProcess {
 
 export class ScriptRunner {
     private processes: Map<string, ScriptProcess> = new Map();
-    
+
     private findRunningByName(name: ScriptProcess['name']): ScriptProcess | undefined {
         for (const p of this.processes.values()) {
             if (p.name === name && p.exitCode === null) return p;
@@ -102,10 +102,10 @@ export class ScriptRunner {
                 execSync(`taskkill /PID ${pid} /T /F`, { stdio: 'ignore' });
             } else {
                 // Try graceful first
-                try { process.kill(pid, 'SIGTERM'); } catch {}
+                try { process.kill(pid, 'SIGTERM'); } catch { }
                 // Fallback force kill if still alive after a short delay
                 setTimeout(() => {
-                    try { process.kill(pid, 'SIGKILL'); } catch {}
+                    try { process.kill(pid, 'SIGKILL'); } catch { }
                 }, 500);
             }
             return true;

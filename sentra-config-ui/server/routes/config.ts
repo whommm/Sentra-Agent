@@ -1,12 +1,16 @@
 import { FastifyInstance } from 'fastify';
 import { scanAllConfigs } from '../utils/configScanner';
 import { writeEnvFile } from '../utils/envParser';
-import { join } from 'path';
+import { join, resolve } from 'path';
 import { EnvVariable } from '../types';
+
+function getRootDir(): string {
+  return resolve(process.cwd(), process.env.SENTRA_ROOT || '..');
+}
 
 export async function configRoutes(fastify: FastifyInstance) {
   // 获取所有配置
-  fastify.get('/api/configs', async (request, reply) => {
+  fastify.get('/api/configs', async (_request, reply) => {
     try {
       const configs = scanAllConfigs();
       return configs;
@@ -29,7 +33,7 @@ export async function configRoutes(fastify: FastifyInstance) {
         return reply.code(400).send({ error: 'Missing moduleName or variables' });
       }
 
-      const modulePath = join(process.cwd(), '..', moduleName);
+      const modulePath = join(getRootDir(), moduleName);
       const envPath = join(modulePath, '.env');
 
       writeEnvFile(envPath, variables);
@@ -54,7 +58,7 @@ export async function configRoutes(fastify: FastifyInstance) {
         return reply.code(400).send({ error: 'Missing pluginName or variables' });
       }
 
-      const pluginPath = join(process.cwd(), '..', 'sentra-mcp', 'plugins', pluginName);
+      const pluginPath = join(getRootDir(), 'sentra-mcp', 'plugins', pluginName);
       const envPath = join(pluginPath, '.env');
 
       writeEnvFile(envPath, variables);

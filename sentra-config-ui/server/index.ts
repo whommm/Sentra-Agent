@@ -14,8 +14,9 @@ dotenv.config();
 const PORT = parseInt(process.env.SERVER_PORT || '7245');
 const CORS_ORIGIN = process.env.CORS_ORIGIN || '*';
 
-// Generate a random security token
-const SECURITY_TOKEN = crypto.randomBytes(4).toString('hex').toUpperCase();
+// SECURITY TOKEN: allow fixed from .env, otherwise generate random on boot
+const ENV_TOKEN = (process.env.SECURITY_TOKEN || '').trim();
+const SECURITY_TOKEN = ENV_TOKEN || crypto.randomBytes(4).toString('hex').toUpperCase();
 
 async function start() {
   const fastify = Fastify({
@@ -91,7 +92,13 @@ async function start() {
     console.log('\n' + '='.repeat(50));
     console.log('Sentra Config Webui Server Started');
     console.log('='.repeat(50));
-    console.log(`\n🔐 SECURITY TOKEN: \x1b[32m\x1b[1m${SECURITY_TOKEN}\x1b[0m`);
+    if (ENV_TOKEN) {
+      console.log(`\n🔐 SECURITY TOKEN (from .env): \x1b[32m\x1b[1m${SECURITY_TOKEN}\x1b[0m`);
+      console.log('\n[Auth] Using fixed security token from .env (SECURITY_TOKEN).');
+    } else {
+      console.log(`\n🔐 SECURITY TOKEN (random): \x1b[32m\x1b[1m${SECURITY_TOKEN}\x1b[0m`);
+      console.log('\n[Auth] No SECURITY_TOKEN in .env, generated a random token for this session.');
+    }
     console.log('\nPlease use this token to log in to the dashboard.\n');
     console.log(`\nSentra 配置管理服务已启动:`);
     console.log(`   - 本地访问:   http://localhost:${PORT}`);

@@ -68,10 +68,10 @@ export const Launchpad: React.FC<LaunchpadProps> = ({ isOpen, onClose, items }) 
       getDisplayName(a.name).localeCompare(getDisplayName(b.name), 'zh-Hans-CN');
     coreApps.sort(byName); toolsApps.sort(byName); qqApps.sort(byName);
 
-    // Priority items: '.'(根目录配置) & 'utils/emoji-stickers'(表情包配置)
+    // Priority items: '.'(根目录配置) & 'utils/emoji-stickers'(表情包配置) & 'sentra-config-ui'(项目配置界面)
     const isPriority = (it: typeof items[number]) => {
       const n = it.name.toLowerCase();
-      return n === '.' || n.includes('utils/emoji-stickers');
+      return n === '.' || n.includes('utils/emoji-stickers') || n.includes('sentra-config-ui');
     };
 
     const priority: typeof items = [] as any;

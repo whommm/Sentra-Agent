@@ -1,132 +1,217 @@
-import { spawn, spawnSync, execSync } from 'node:child_process';
-import path from 'node:path';
+#!/usr/bin/env node
+
+import { spawn } from 'child_process';
 import fs from 'node:fs';
-import { fileURLToPath } from 'node:url';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import chalk from 'chalk';
-import boxen from 'boxen';
+import ora from 'ora';
+import crypto from 'crypto';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const repoRoot = path.resolve(__dirname, '..', '..');
+// Root directory is one level up from sentra-config-ui
+const ROOT_DIR = path.resolve(__dirname, '..', '..');
 
-function parseArgs() {
-  const args = process.argv.slice(2);
-  const out = { mode: 'safe', scope: 'all', install: 'node', pm: 'auto' };
-  for (let i = 0; i < args.length; i++) {
-    const a = args[i];
-    if (a.startsWith('--mode=')) out.mode = a.split('=')[1];
-    else if (a === '--mode' && args[i + 1]) out.mode = args[++i];
-    else if (a.startsWith('--scope=')) out.scope = a.split('=')[1];
-    else if (a === '--scope' && args[i + 1]) out.scope = args[++i];
-    else if (a.startsWith('--install=')) out.install = a.split('=')[1];
-    else if (a === '--install' && args[i + 1]) out.install = args[++i];
-    else if (a.startsWith('--pm=')) out.pm = a.split('=')[1];
-    else if (a === '--pm' && args[i + 1]) out.pm = args[++i];
-    else if (a === '--help' || a === '-h') {
-      console.log(chalk.cyan('Usage: node scripts/update.mjs [--mode safe|force] [--scope root|all] [--install none|node|python|all] [--pm auto|pnpm|npm|cnpm]'));
-      process.exit(0);
+const args = process.argv.slice(2);
+const isForce = args.includes('force') || args.includes('--force');
+
+console.log(chalk.blue.bold('\n🔄 Sentra Agent Update Script\n'));
+console.log(chalk.gray(`Root Directory: ${ROOT_DIR}`));
+console.log(chalk.gray(`Update Mode: ${isForce ? 'FORCE' : 'NORMAL'}\n`));
+
+function exists(p) {
+    try {
+        fs.accessSync(p);
+        return true;
+    } catch {
+        return false;
     }
-  }
-  return out;
 }
 
-function run(cmd, args, cwd, extraEnv) {
-  return new Promise((resolve, reject) => {
-    const p = spawn(cmd, args, { cwd, stdio: 'inherit', shell: true, env: { ...process.env, ...(extraEnv || {}) } });
-    p.on('close', (code) => {
-      if (code === 0) resolve();
-      else reject(new Error(`${cmd} ${args.join(' ')} exited with code ${code}`));
+function getFileHash(filePath) {
+    try {
+        const content = fs.readFileSync(filePath, 'utf-8');
+        return crypto.createHash('md5').update(content).digest('hex');
+    } catch {
+        return null;
+    }
+}
+
+function listSentraSubdirs(root) {
+    const out = [];
+    try {
+        const entries = fs.readdirSync(root, { withFileTypes: true });
+        for (const e of entries) {
+            if (e.isDirectory() && e.name.startsWith('sentra-')) {
+                out.push(path.join(root, e.name));
+            }
+        }
+    } catch {
+        // Ignore errors
+    }
+    return out;
+}
+
+function isNodeProject(dir) {
+    return exists(path.join(dir, 'package.json'));
+}
+
+function listNestedNodeProjects(dir) {
+    const results = [];
+    let entries = [];
+    try {
+        entries = fs.readdirSync(dir, { withFileTypes: true });
+    } catch {
+        return results;
+    }
+    for (const e of entries) {
+        if (!e.isDirectory()) continue;
+        const name = e.name;
+        if (name === 'node_modules' || name.startsWith('.')) continue;
+        const sub = path.join(dir, name);
+        if (isNodeProject(sub)) results.push(sub);
+    }
+    return results;
+}
+
+function collectAllNodeProjects() {
+    const projects = new Set();
+    const uiDir = path.resolve(ROOT_DIR, 'sentra-config-ui');
+
+    // Add root and UI directory
+    if (isNodeProject(ROOT_DIR)) projects.add(ROOT_DIR);
+    if (isNodeProject(uiDir)) projects.add(uiDir);
+
+    // Add all sentra-* directories
+    for (const dir of listSentraSubdirs(ROOT_DIR)) {
+        if (isNodeProject(dir)) projects.add(dir);
+        // Also include one-level nested Node projects
+        for (const nested of listNestedNodeProjects(dir)) {
+            projects.add(nested);
+        }
+    }
+
+    return Array.from(projects);
+}
+
+async function execCommand(command, args, cwd) {
+    return new Promise((resolve, reject) => {
+        const proc = spawn(command, args, {
+            cwd,
+            stdio: 'inherit',
+            shell: true,
+            env: {
+                ...process.env,
+                FORCE_COLOR: '3',
+            }
+        });
+
+        proc.on('close', (code) => {
+            if (code === 0) {
+                resolve();
+            } else {
+                reject(new Error(`Command failed with exit code ${code}`));
+            }
+        });
+
+        proc.on('error', reject);
     });
-  });
 }
 
-function commandExists(cmd, checkArgs = ['--version']) {
-  try {
-    const r = spawnSync(cmd, checkArgs, { stdio: 'ignore', shell: true });
-    return r.status === 0;
-  } catch {
-    return false;
-  }
-}
+async function update() {
+    const spinner = ora();
 
-function choosePM(preferred) {
-  if (preferred && preferred !== 'auto') {
-    if (!commandExists(preferred)) throw new Error(`Package manager ${preferred} not found in PATH`);
-    return preferred;
-  }
-  if (commandExists('pnpm')) return 'pnpm';
-  if (commandExists('npm')) return 'npm';
-  if (commandExists('cnpm')) return 'cnpm';
-  throw new Error('No package manager found. Please install pnpm or npm or cnpm, or pass --pm option.');
-}
+    try {
+        // Step 1: Get package.json hashes before update
+        console.log(chalk.cyan('📦 Detecting package.json files...\n'));
+        const projects = collectAllNodeProjects();
+        const beforeHashes = new Map();
 
-function isGitRepo(dir) {
-  try { return fs.existsSync(path.join(dir, '.git')); } catch { return false; }
-}
+        for (const dir of projects) {
+            const pkgPath = path.join(dir, 'package.json');
+            const hash = getFileHash(pkgPath);
+            const label = path.relative(ROOT_DIR, dir) || '.';
+            beforeHashes.set(dir, hash);
+            console.log(chalk.gray(`  Found: ${label}`));
+        }
+        console.log();
 
-function getCurrentBranch(dir) {
-  try {
-    const out = execSync('git rev-parse --abbrev-ref HEAD', { cwd: dir, stdio: ['ignore', 'pipe', 'ignore'], shell: true }).toString().trim();
-    if (out && out !== 'HEAD') return out;
-  } catch {}
-  try {
-    const head = fs.readFileSync(path.join(dir, '.git', 'HEAD'), 'utf8');
-    const m = head.match(/refs\/(heads|remotes\/origin)\/([\w\-\.\/]+)/);
-    if (m) return m[2];
-  } catch {}
-  return 'main';
-}
+        // Step 2: Git operations
+        if (isForce) {
+            console.log(chalk.yellow.bold('⚠️  Force Update Mode - This will discard local changes!\n'));
 
-async function safeUpdate(dir) {
-  await run('git', ['fetch', '--all', '--prune'], dir);
-  try {
-    await run('git', ['pull', '--ff-only'], dir);
-  } catch {
-    await run('git', ['pull', '--rebase', '--autostash'], dir);
-  }
-}
+            spinner.start('Fetching latest changes...');
+            await execCommand('git', ['fetch', '--all'], ROOT_DIR);
+            spinner.succeed('Fetched latest changes');
 
-async function forceUpdate(dir) {
-  const branch = getCurrentBranch(dir);
-  await run('git', ['fetch', '--all', '--prune'], dir);
-  await run('git', ['reset', '--hard', `origin/${branch}`], dir);
-  await run('git', ['clean', '-fdx'], dir);
-}
+            spinner.start('Resetting to origin/main...');
+            await execCommand('git', ['reset', '--hard', 'origin/main'], ROOT_DIR);
+            spinner.succeed('Reset to origin/main');
+        } else {
+            spinner.start('Checking for updates...');
+            await execCommand('git', ['fetch'], ROOT_DIR);
+            spinner.succeed('Checked for updates');
 
-async function ensureDependencies(install, pmChoice) {
-  if (install === 'none') return;
-  if (install === 'node' || install === 'all') {
-    await run(process.execPath, [path.join('scripts', 'bootstrap.mjs'), '--only', 'node', '--force', '--pm', pmChoice], repoRoot);
-  }
-  if (install === 'python' || install === 'all') {
-    await run(process.execPath, [path.join('scripts', 'bootstrap.mjs'), '--only', 'python', '--force'], repoRoot);
-  }
-}
+            spinner.start('Pulling latest changes...');
+            await execCommand('git', ['pull'], ROOT_DIR);
+            spinner.succeed('Pulled latest changes');
+        }
 
-async function main() {
-  console.log(boxen(chalk.bold.magenta('Sentra Agent Update'), { padding: 1, borderStyle: 'round' }));
-  const opts = parseArgs();
-  const pm = choosePM(opts.pm);
+        // Step 3: Check which projects need dependency installation
+        console.log(chalk.cyan('\n🔍 Checking for dependency changes...\n'));
+        const projectsToInstall = [];
 
-  if (!isGitRepo(repoRoot)) {
-    console.log(chalk.yellow('No git repository detected at repo root, skipping git update.'));
-  } else {
-    if (opts.mode === 'force') {
-      console.log(chalk.yellow('Force updating repository...'));
-      await forceUpdate(repoRoot);
-    } else {
-      console.log(chalk.blue('Safe updating repository...'));
-      await safeUpdate(repoRoot);
+        for (const dir of projects) {
+            const label = path.relative(ROOT_DIR, dir) || '.';
+            const pkgPath = path.join(dir, 'package.json');
+            const nmPath = path.join(dir, 'node_modules');
+
+            // Check if node_modules exists
+            if (!exists(nmPath)) {
+                console.log(chalk.yellow(`  ${label}: node_modules missing → will install`));
+                projectsToInstall.push({ dir, label, reason: 'missing node_modules' });
+                continue;
+            }
+
+            // Check if package.json changed
+            const beforeHash = beforeHashes.get(dir);
+            const afterHash = getFileHash(pkgPath);
+
+            if (beforeHash !== afterHash) {
+                console.log(chalk.yellow(`  ${label}: package.json changed → will install`));
+                projectsToInstall.push({ dir, label, reason: 'package.json changed' });
+            } else {
+                console.log(chalk.gray(`  ${label}: no changes → skip`));
+            }
+        }
+
+        // Step 4: Install dependencies for projects that need it
+        if (projectsToInstall.length > 0) {
+            console.log(chalk.cyan(`\n📥 Installing dependencies for ${projectsToInstall.length} project(s)...\n`));
+
+            for (const { dir, label, reason } of projectsToInstall) {
+                spinner.start(`Installing ${label} (${reason})...`);
+                try {
+                    await execCommand('npm', ['install'], dir);
+                    spinner.succeed(`Installed ${label}`);
+                } catch (error) {
+                    spinner.fail(`Failed to install ${label}`);
+                    throw error;
+                }
+            }
+        } else {
+            console.log(chalk.green('\n✨ No dependency changes detected, skipping installation\n'));
+        }
+
+        console.log(chalk.green.bold('\n✅ Update completed successfully!\n'));
+        process.exit(0);
+    } catch (error) {
+        spinner.fail('Update failed');
+        console.error(chalk.red('\n❌ Error:'), error.message);
+        process.exit(1);
     }
-  }
-
-  await ensureDependencies(opts.install, pm);
-
-  console.log(chalk.green.bold('Update complete.'));
 }
 
-main().catch((e) => {
-  console.error(chalk.red.bold('Error: ') + (e.message || e));
-  process.exit(1);
-});
+update();
