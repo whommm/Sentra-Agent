@@ -32,7 +32,7 @@ export function parseEnvFile(content: string): EnvVariable[] {
 
       // 移除引号
       if ((value.startsWith('"') && value.endsWith('"')) ||
-          (value.startsWith("'") && value.endsWith("'"))) {
+        (value.startsWith("'") && value.endsWith("'"))) {
         value = value.substring(1, value.length - 1);
       }
 
@@ -87,4 +87,31 @@ export function readEnvFile(filePath: string): EnvVariable[] {
 export function writeEnvFile(filePath: string, variables: EnvVariable[]): void {
   const content = serializeEnvFile(variables);
   writeFileSync(filePath, content, 'utf-8');
+}
+
+/**
+ * 合并 .env 和 .env.example
+ * 1. 补全 .env 中缺失的 key (来自 example)
+ * 2. 优先使用 example 中的注释
+ */
+export function mergeEnvWithExample(envVars: EnvVariable[], exampleVars: EnvVariable[]): EnvVariable[] {
+  // 复制一份 envVars 以免修改原数组
+  const result = [...envVars];
+  const envKeyMap = new Map(result.map((v, i) => [v.key, i]));
+
+  for (const exVar of exampleVars) {
+    if (envKeyMap.has(exVar.key)) {
+      // Key 存在：检查是否需要更新注释
+      // 规则：如果 example 有注释，强制使用 example 的注释
+      if (exVar.comment) {
+        const index = envKeyMap.get(exVar.key)!;
+        result[index].comment = exVar.comment;
+      }
+    } else {
+      // Key 不存在：从 example 补充
+      result.push({ ...exVar });
+    }
+  }
+
+  return result;
 }

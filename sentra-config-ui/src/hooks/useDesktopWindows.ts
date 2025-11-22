@@ -132,8 +132,12 @@ export function useDesktopWindows({ setSaving, addToast, loadConfigs, onLogout }
       addToast('success', '保存成功', `已更新 ${getDisplayName(win.file.name)} 配置`);
       await loadConfigs(true);
 
-      // Trigger logout after successful save to force re-login
-      if (onLogout) {
+      // Trigger logout ONLY if SECURITY_TOKEN was modified
+      // We compare the new value (in editedVars) with the old value (in file.variables)
+      const oldToken = win.file.variables?.find(v => v.key === 'SECURITY_TOKEN')?.value;
+      const newToken = validVars.find(v => v.key === 'SECURITY_TOKEN')?.value;
+
+      if (onLogout && newToken !== oldToken) {
         setTimeout(() => {
           onLogout();
         }, 1500); // Small delay to let the toast show

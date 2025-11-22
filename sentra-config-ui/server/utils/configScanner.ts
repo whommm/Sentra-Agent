@@ -1,7 +1,7 @@
 import { readdirSync, statSync, existsSync, readFileSync } from 'fs';
 import { join, resolve } from 'path';
-import { ModuleConfig, PluginConfig, ConfigData } from '../types';
-import { readEnvFile } from './envParser';
+import { ModuleConfig, PluginConfig, ConfigData, EnvVariable } from '../types';
+import { readEnvFile, mergeEnvWithExample } from './envParser';
 
 // Resolve root directory dynamically at runtime so env can override
 function getRootDir(): string {
@@ -32,10 +32,21 @@ function scanModule(moduleName: string): ModuleConfig {
   const hasExample = existsSync(examplePath);
 
   // 如果没有 .env 但有 .env.example，则使用 example 作为预览
-  const variables = hasEnv
-    ? readEnvFile(envPath)
-    : (hasExample ? readEnvFile(examplePath) : []);
-    
+  // 如果没有 .env 但有 .env.example，则使用 example 作为预览
+  // 如果两者都有，则合并：使用 .env 的值，但补全 example 的 key 和注释
+  let variables: EnvVariable[] = [];
+  if (hasEnv) {
+    const envVars = readEnvFile(envPath);
+    if (hasExample) {
+      const exampleVars = readEnvFile(examplePath);
+      variables = mergeEnvWithExample(envVars, exampleVars);
+    } else {
+      variables = envVars;
+    }
+  } else if (hasExample) {
+    variables = readEnvFile(examplePath);
+  }
+
   const exampleVariables = hasExample ? readEnvFile(examplePath) : undefined;
 
   return {
@@ -62,7 +73,7 @@ function scanPlugins(): PluginConfig[] {
 
   for (const entry of entries) {
     const pluginPath = join(pluginsDir, entry);
-    
+
     // 跳过文件，只处理目录
     if (!statSync(pluginPath).isDirectory()) {
       continue;
@@ -77,9 +88,20 @@ function scanPlugins(): PluginConfig[] {
     const hasConfigJson = existsSync(configPath);
 
     // 如果没有 .env 但有 .env.example，则使用 example 作为预览
-    const variables = hasEnv
-      ? readEnvFile(envPath)
-      : (hasExample ? readEnvFile(examplePath) : []);
+    // 如果没有 .env 但有 .env.example，则使用 example 作为预览
+    // 如果两者都有，则合并
+    let variables: EnvVariable[] = [];
+    if (hasEnv) {
+      const envVars = readEnvFile(envPath);
+      if (hasExample) {
+        const exampleVars = readEnvFile(examplePath);
+        variables = mergeEnvWithExample(envVars, exampleVars);
+      } else {
+        variables = envVars;
+      }
+    } else if (hasExample) {
+      variables = readEnvFile(examplePath);
+    }
 
     const exampleVariables = hasExample ? readEnvFile(examplePath) : undefined;
 
@@ -89,7 +111,7 @@ function scanPlugins(): PluginConfig[] {
         const configContent = readFileSync(configPath, 'utf-8');
         configJson = JSON.parse(configContent);
       } catch (error) {
-        console.error(`Failed to parse config.json for plugin ${entry}:`, error);
+        console.error(`Failed to parse config.json for plugin ${entry}: `, error);
       }
     }
 

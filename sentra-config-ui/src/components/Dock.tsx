@@ -20,14 +20,14 @@ interface DockProps {
 }
 
 export const Dock: React.FC<DockProps> = ({ items }) => {
-  const mouseX = useMotionValue<number | null>(null);
+  const mouseX = useMotionValue<number>(Infinity);
 
   return (
     <div className={styles.dockContainer}>
       <motion.div
         className={styles.dock}
         onMouseMove={(e) => mouseX.set(e.pageX)}
-        onMouseLeave={() => mouseX.set(null)}
+        onMouseLeave={() => mouseX.set(Infinity)}
       >
         {items.map((item) => (
           <DockIcon key={item.id} mouseX={mouseX} item={item} />
@@ -37,13 +37,13 @@ export const Dock: React.FC<DockProps> = ({ items }) => {
   );
 };
 
-function DockIcon({ mouseX, item }: { mouseX: MotionValue<number | null>; item: DockItem }) {
+function DockIcon({ mouseX, item }: { mouseX: MotionValue<number>; item: DockItem }) {
   const ref = useRef<HTMLDivElement>(null);
   const { show } = useContextMenu({ id: `dock-menu-${item.id}` });
 
   const distance = useTransform(mouseX, (val) => {
     const bounds = ref.current?.getBoundingClientRect() ?? { x: 0, width: 0 };
-    return val ? val - bounds.x - bounds.width / 2 : 0;
+    return val - bounds.x - bounds.width / 2;
   });
 
   const widthSync = useTransform(distance, [-150, 0, 150], [50, 100, 50]);

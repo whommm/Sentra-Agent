@@ -47,7 +47,7 @@ export class ScriptRunner {
                 const parsed = dotenv.parse(fs.readFileSync(envPath));
                 runtimeEnv = parsed as unknown as Record<string, string>;
             }
-        } catch {}
+        } catch { }
 
         const proc = spawn('node', [scriptPath, ...args], {
             cwd: process.cwd(),
@@ -111,16 +111,33 @@ export class ScriptRunner {
         if (!pid) return false;
 
         try {
-            if (os.platform() === 'win32') {
-                // Kill the entire process tree on Windows
-                execSync(`taskkill /PID ${pid} /T /F`, { stdio: 'ignore' });
+            // Special handling for PM2-managed start script
+            if (record.name === 'start') {
+                try {
+                    // Kill the wrapper process first
+                    if (os.platform() === 'win32') {
+                        execSync(`taskkill /PID ${pid} /T /F`, { stdio: 'ignore' });
+                    } else {
+                        try { process.kill(pid, 'SIGTERM'); } catch { }
+                    }
+
+                    // Then delete the PM2 process
+                    execSync('pm2 delete sentra-agent', { stdio: 'ignore' });
+                    console.log('[ScriptRunner] Deleted PM2 process: sentra-agent');
+                } catch (pm2Error) {
+                    console.error('[ScriptRunner] Failed to delete PM2 process:', pm2Error);
+                    // Continue anyway since wrapper is killed
+                }
             } else {
-                // Try graceful first
-                try { process.kill(pid, 'SIGTERM'); } catch { }
-                // Fallback force kill if still alive after a short delay
-                setTimeout(() => {
-                    try { process.kill(pid, 'SIGKILL'); } catch { }
-                }, 500);
+                // Normal process termination for other scripts
+                if (os.platform() === 'win32') {
+                    execSync(`taskkill /PID ${pid} /T /F`, { stdio: 'ignore' });
+                } else {
+                    try { process.kill(pid, 'SIGTERM'); } catch { }
+                    setTimeout(() => {
+                        try { process.kill(pid, 'SIGKILL'); } catch { }
+                    }, 500);
+                }
             }
             return true;
         } catch {

@@ -26,7 +26,8 @@
   "sideEffects": false,
   "scripts": {
     "start": "node src/mcp/server/index.js",
-    "dev": "node --watch src/mcp/server/index.js"
+    "dev": "node --watch src/mcp/server/index.js",
+    "postinstall": "puppeteer browsers install chrome"
   },
   "engines": {
     "node": ">=18.17.0"

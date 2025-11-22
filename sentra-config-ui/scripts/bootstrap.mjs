@@ -133,6 +133,16 @@ function parseTrustedHostsFromEnv() {
     .filter(Boolean);
 }
 
+function hasTorchRequirement(emoDir) {
+  const reqPath = path.join(emoDir, 'requirements.txt');
+  try {
+    const content = fs.readFileSync(reqPath, 'utf8');
+    return /(^|\n)\s*torch\s*[><=]/.test(content);
+  } catch {
+    return false;
+  }
+}
+
 async function installNode(dir, pm, dryRun, registry) {
   const label = path.relative(repoRoot, dir) || '.';
   const spinner = ora(`Installing dependencies for ${chalk.bold(label)}...`).start();
@@ -215,9 +225,26 @@ function hasUv() {
 async function installRequirementsWithFallback(vpy, emoDir, pipIndex, dryRun) {
   const attempts = [];
   const basePipArgs = ['-m', 'pip', 'install', '-r', 'requirements.txt', '--retries', '3', '--timeout', '60'];
-  const extraIndex = (process.env.PIP_EXTRA_INDEX_URL || '').trim();
+  const extraIndexEnv = (process.env.PIP_EXTRA_INDEX_URL || '').trim();
+  let extraIndex = extraIndexEnv;
   const trustedHosts = parseTrustedHostsFromEnv();
   const trustedArgs = trustedHosts.flatMap(h => ['--trusted-host', h]);
+  const uvAvailable = hasUv();
+  const pipOnlyCustomIndexEnv = String(process.env.PIP_ONLY_CUSTOM_INDEX || '').toLowerCase();
+  const pipOnlyCustomIndex = pipOnlyCustomIndexEnv === '1' || pipOnlyCustomIndexEnv === 'true';
+
+  if (!extraIndex && hasTorchRequirement(emoDir)) {
+    const pytorchIndex = (process.env.PYTORCH_INDEX_URL || '').trim() || 'https://download.pytorch.org/whl/cpu';
+    extraIndex = pytorchIndex;
+  }
+
+  if (uvAvailable) {
+    attempts.push({
+      cmd: 'uv',
+      args: ['pip', 'install', '-r', 'requirements.txt', '--python', vpy, '--index-url', (pipIndex || 'https://pypi.org/simple')].concat(extraIndex ? ['--extra-index-url', extraIndex] : []),
+      label: 'uv pip (--python venv)'
+    });
+  }
 
   if (pipIndex) {
     attempts.push({
@@ -226,16 +253,12 @@ async function installRequirementsWithFallback(vpy, emoDir, pipIndex, dryRun) {
       label: `pip (-i ${pipIndex}${extraIndex ? ` + extra-index ${extraIndex}` : ' + extra-index pypi.org'})`
     });
   }
-  attempts.push({
-    cmd: vpy,
-    args: [...basePipArgs, '-i', 'https://pypi.org/simple', ...trustedArgs],
-    label: 'pip (official pypi.org)'
-  });
-  if (hasUv()) {
+
+  if (!pipOnlyCustomIndex) {
     attempts.push({
-      cmd: 'uv',
-      args: ['pip', 'install', '-r', 'requirements.txt', '--python', vpy, '--index-url', (pipIndex || 'https://pypi.org/simple')].concat(extraIndex ? ['--extra-index-url', extraIndex] : []),
-      label: 'uv pip (--python venv)'
+      cmd: vpy,
+      args: [...basePipArgs, '-i', 'https://pypi.org/simple', ...(extraIndex ? ['--extra-index-url', extraIndex] : []), ...trustedArgs],
+      label: `pip (official pypi.org${extraIndex ? ` + extra-index ${extraIndex}` : ''})`
     });
   }
 

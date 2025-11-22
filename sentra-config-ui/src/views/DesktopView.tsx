@@ -373,7 +373,7 @@ export function DesktopView(props: DesktopViewProps) {
         }))}
       />
 
-      {showDock && <Dock items={uniqueDockItems} />}
+      {showDock && <Dock items={uniqueDockItems.slice(0, 16)} />}
 
       <ToastContainer toasts={toasts} removeToast={removeToast} />
 

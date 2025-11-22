@@ -18,14 +18,26 @@ function buildInterventionPrompt(msg, probability, threshold, state) {
   const isGroup = msg.type === 'group';
   const chatType = isGroup ? 'group' : 'private';
   const pace = state.avgMessageInterval > 0 ? `${state.avgMessageInterval.toFixed(0)}s` : 'unknown';
-  
-  // 截断过长的文本（最多保留 200 字符）
   const maxTextLength = 200;
   let messageText = msg.text || '(empty)';
   if (messageText.length > maxTextLength) {
     messageText = messageText.substring(0, maxTextLength) + '...';
   }
-  
+  const flags = [];
+  if (msg.image) {
+    flags.push('[Contains Image]');
+  }
+  if (msg.file) {
+    flags.push('[Contains File]');
+  }
+  const messageTextWithFlags = flags.length > 0 ? `${messageText}\n${flags.join('\n')}` : messageText;
+  const isExplicitMention = isGroup && Array.isArray(msg.at_users) && msg.self_id != null && msg.at_users.some((id) => id === msg.self_id);
+  let mentionInfo = '';
+  if (isExplicitMention) {
+    const senderName = msg.sender_name || `${msg.sender_id ?? ''}`;
+    // 在群聊里被 @ 时，明确告诉轻量模型：XX 在群聊里面艾特了你，然后说：XXX
+    mentionInfo = `提问者 ${senderName} 在群聊里面艾特了你，然后说："${messageText}"\n\n`;
+  }
   return `# Reply Decision Validator
 
 You are a secondary validator for reply decisions. The base probability check has passed (${(probability * 100).toFixed(0)}% >= ${(threshold * 100).toFixed(0)}%), but you need to verify if a reply is **truly necessary** to avoid unnecessary responses.
@@ -37,25 +49,31 @@ You are a secondary validator for reply decisions. The base probability check ha
 **Pace**: Average interval ${pace}
 **Base Probability**: ${(probability * 100).toFixed(0)}%
 
-**Current Message**:
+${mentionInfo}**Current Message**:
 \`\`\`
-${messageText}${msg.image ? '\n[Contains Image]' : ''}${msg.file ? '\n[Contains File]' : ''}
+${messageTextWithFlags}
 \`\`\`
 
 ## Decision Criteria
 
+When the input context contains a line like:
+"提问者 … 在群聊里面艾特了你，然后说：\"…\""，
+it means the user explicitly mentioned you in a group chat. In that case, you should normally prefer need=true, unless the message is clearly empty, pure spam, or meaningless.
+
 **SHOULD Reply (need=true)**:
 - Explicit help requests or questions
-- Tasks with clear intent
-- Valuable topic discussions
-- Content requiring acknowledgment or feedback
+- Tasks with clear intent or clear instructions
+- Valuable topic discussions or meaningful follow-ups
+- Content requiring acknowledgment, emotional support, or feedback
+- Explicit @ mention to you in a group chat, as long as there is any understandable content or intent in the message
 
 **SHOULD NOT Reply (need=false)**:
-- Meaningless chitchat or spam
-- Simple emojis or filler words
-- Repetitive messages or flooding
-- Rapid-fire messages in fast-paced conversations (<20s interval)
+- Completely meaningless chitchat or obvious spam (even if it @ mentions you)
+- Pure emojis, stickers, or filler words with no clear intent
+- Repetitive messages or flooding that add no new information
+- Rapid-fire messages in very fast-paced conversations (<20s interval) where another reply would be excessive
 - Recent replies with no new topics (avoid over-engagement)
+- For explicit @ mention, only choose need=false when the message is essentially empty, trolling, or clearly better left without a reply
 
 ## Output Format (CRITICAL)
 

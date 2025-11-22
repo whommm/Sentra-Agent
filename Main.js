@@ -847,6 +847,7 @@ socket.on('message', async (data) => {
         return;
       }
 
+      const isExplicitMention = Array.isArray(msg?.at_users) && msg?.self_id != null && msg.at_users.some((id) => id === msg.self_id);
       const replyDecision = await shouldReply(msg);
       let taskId = replyDecision.taskId;
       logger.info(`回复决策: ${replyDecision.reason} (mandatory=${replyDecision.mandatory}, probability=${(replyDecision.probability * 100).toFixed(1)}%, taskId=${taskId || 'null'})`);
@@ -879,25 +880,26 @@ socket.on('message', async (data) => {
             }
             return;
           }
-          // 干预判断认为不需要回复，降低欲望值并重新计算
+          if (isExplicitMention) {
+            logger.info(`干预判断: 不需要回复 - ${interventionResult.reason} (confidence=${interventionResult.confidence})`);
+            if (taskId) {
+              await completeTask(userid, taskId);
+            }
+            return;
+          }
           logger.info(`干预判断: 不需要回复 - ${interventionResult.reason} (confidence=${interventionResult.confidence})`);
-          
           const recalcResult = reduceDesireAndRecalculate(
-            replyDecision.conversationId, 
-            msg, 
+            replyDecision.conversationId,
+            msg,
             interventionConfig.desireReduction
           );
-          
           if (!recalcResult.needReply) {
-            // 降低欲望后仍不通过阈值，跳过回复
             logger.info(`干预后跳过: 欲望降低${(interventionConfig.desireReduction * 100).toFixed(0)}%后概率${(recalcResult.probability * 100).toFixed(1)}%仍未通过`);
-            // 移除活跃任务（因为不会处理）
             if (taskId) {
               await completeTask(userid, taskId);
             }
             return;
           } else {
-            // 降低欲望后仍然通过阈值，继续处理
             logger.info(`干预后继续: 欲望降低${(interventionConfig.desireReduction * 100).toFixed(0)}%后概率${(recalcResult.probability * 100).toFixed(1)}%仍通过阈值`);
           }
         } else {

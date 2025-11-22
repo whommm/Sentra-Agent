@@ -143,7 +143,9 @@ function getConfig() {
     // 队列任务最大等待时间（毫秒）
     queueTimeout: parseInt(process.env.QUEUE_TIMEOUT) || 30000,
     // Sigmoid激活函数的陡峭度
-    sigmoidSteepness: parseFloat(process.env.SIGMOID_STEEPNESS) || 8.0
+    sigmoidSteepness: parseFloat(process.env.SIGMOID_STEEPNESS) || 8.0,
+    // 显式 @ 是否必须回复（true=显式 @ 一律回复，不走轻量模型；false=显式 @ 由轻量模型拍板）
+    mentionMustReply: process.env.MENTION_MUST_REPLY === 'true'
   };
 }
 
@@ -473,7 +475,6 @@ export async function shouldReply(msg) {
   // 5. 综合欲望值（多因子融合）
   let totalDesire = baseDesire + mentionBonus + ignorePenalty + paceAdjustment;
   totalDesire = Math.max(0, Math.min(1, totalDesire));
-  
   // 6. Sigmoid激活转换为概率（平滑过渡）
   const probability = sigmoidActivation(totalDesire, config.sigmoidSteepness);
   
@@ -483,6 +484,45 @@ export async function shouldReply(msg) {
   logger.debug(`[${groupInfo}] 用户${senderId} 详情: 基础=${baseDesire.toFixed(3)}(log+decay), 提及=${mentionBonus.toFixed(3)}, 惩罚=${ignorePenalty.toFixed(3)}, 节奏=${paceAdjustment.toFixed(3)}, 总计=${totalDesire.toFixed(3)}`);
   logger.debug(`[${groupInfo}] 用户${senderId} 概率: Sigmoid(${totalDesire.toFixed(3)}) = ${probability.toFixed(3)} (阈值=${config.baseReplyThreshold})`);
   logger.debug(`[${groupInfo}] 用户${senderId} 时间: 最后消息 ${(Date.now()/1000 - state.lastMessageTime).toFixed(1)}s前, 时间戳数 ${state.messageTimestamps.length}`);
+  
+  const enableInterventionEnv = process.env.ENABLE_REPLY_INTERVENTION === 'true';
+  const hasInterventionModel = !!process.env.REPLY_INTERVENTION_MODEL;
+  const isGroup = msg.type === 'group';
+  const isExplicitGroupMention = isGroup && isExplicitMention;
+  const mentionMustReply = !!config.mentionMustReply;
+  const canUseLightModelForMention = isExplicitGroupMention && enableInterventionEnv && hasInterventionModel;
+  
+  if (isExplicitGroupMention && mentionMustReply) {
+    const taskId = randomUUID();
+    addActiveTask(senderId, taskId);
+    logger.info(`[${groupInfo}] 用户${senderId} 智能回复通过: 显式@（配置为必须回复）, task=${taskId}`);
+    return {
+      needReply: true,
+      reason: '显式@（配置必须回复）',
+      mandatory: true,
+      probability: 1.0,
+      conversationId,
+      taskId,
+      state,
+      threshold: config.baseReplyThreshold
+    };
+  }
+  
+  if (isExplicitGroupMention && canUseLightModelForMention && !mentionMustReply) {
+    const taskId = randomUUID();
+    addActiveTask(senderId, taskId);
+    logger.info(`[${groupInfo}] 用户${senderId} 智能回复通过: 显式@（交给轻量模型判断）, task=${taskId}`);
+    return {
+      needReply: true,
+      reason: '显式@（轻量模型判断）',
+      mandatory: false,
+      probability,
+      conversationId,
+      taskId,
+      state,
+      threshold: config.baseReplyThreshold
+    };
+  }
   
   // 判断是否回复
   const needReply = probability >= config.baseReplyThreshold;
@@ -522,7 +562,7 @@ export async function shouldReply(msg) {
  * 降低欲望值并重新计算概率（用于干预判断）
  * @param {string} conversationId - 会话ID
  * @param {Object} msg - 消息对象
- * @param {number} reductionPercent - 降低的百分比（如 0.10 表示降低10%）
+ * @param {number} [reductionPercent=0.10] - 欲望值降低百分比
  * @returns {{probability: number, needReply: boolean, totalDesire: number, state: Object}}
  */
 export function reduceDesireAndRecalculate(conversationId, msg, reductionPercent = 0.10) {

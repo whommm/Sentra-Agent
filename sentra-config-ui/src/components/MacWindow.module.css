@@ -81,7 +81,7 @@
   height: 16px;
 }
 
-.titleIcon > div {
+.titleIcon>div {
   width: 18px;
   height: 18px;
   border-radius: 4px;
@@ -111,17 +111,72 @@
 .resizeHandle {
   position: absolute;
   z-index: 5;
-  background: transparent; /* enlarge hit area but invisible */
+  background: transparent;
+  /* enlarge hit area but invisible */
 }
 
 /* Edges */
-.n { top: -2px; left: 8px; right: 8px; height: 8px; cursor: ns-resize; }
-.s { bottom: -2px; left: 8px; right: 8px; height: 8px; cursor: ns-resize; }
-.e { right: -2px; top: 8px; bottom: 8px; width: 8px; cursor: ew-resize; }
-.w { left: -2px; top: 8px; bottom: 8px; width: 8px; cursor: ew-resize; }
+.n {
+  top: -2px;
+  left: 8px;
+  right: 8px;
+  height: 8px;
+  cursor: ns-resize;
+}
+
+.s {
+  bottom: -2px;
+  left: 8px;
+  right: 8px;
+  height: 8px;
+  cursor: ns-resize;
+}
+
+.e {
+  right: -2px;
+  top: 8px;
+  bottom: 8px;
+  width: 8px;
+  cursor: ew-resize;
+}
+
+.w {
+  left: -2px;
+  top: 8px;
+  bottom: 8px;
+  width: 8px;
+  cursor: ew-resize;
+}
 
 /* Corners */
-.ne { top: -2px; right: -2px; width: 14px; height: 14px; cursor: nesw-resize; }
-.nw { top: -2px; left: -2px; width: 14px; height: 14px; cursor: nwse-resize; }
-.se { bottom: -2px; right: -2px; width: 14px; height: 14px; cursor: nwse-resize; }
-.sw { bottom: -2px; left: -2px; width: 14px; height: 14px; cursor: nesw-resize; }
+.ne {
+  top: -2px;
+  right: -2px;
+  width: 14px;
+  height: 14px;
+  cursor: nesw-resize;
+}
+
+.nw {
+  top: -2px;
+  left: -2px;
+  width: 14px;
+  height: 14px;
+  cursor: nwse-resize;
+}
+
+.se {
+  bottom: -2px;
+  right: -2px;
+  width: 14px;
+  height: 14px;
+  cursor: nwse-resize;
+}
+
+.sw {
+  bottom: -2px;
+  left: -2px;
+  width: 14px;
+  height: 14px;
+  cursor: nesw-resize;
+}

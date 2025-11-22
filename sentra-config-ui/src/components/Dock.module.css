@@ -21,7 +21,8 @@
   gap: 12px;
   box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
   pointer-events: auto;
-  height: 80px; /* Fixed height for container */
+  height: 80px;
+  /* Fixed height for container */
 }
 
 .dockItem {
