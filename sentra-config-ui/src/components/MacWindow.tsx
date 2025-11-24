@@ -165,6 +165,12 @@ export const MacWindow: React.FC<MacWindowProps> = ({
         left: isMaximized ? 0 : 0,
         borderRadius: isMaximized ? 0 : 8,
         resize: 'none',
+        // When maximized, we need to override the transform set by Draggable
+        // But Draggable applies transform via style prop.
+        // If we are inside Draggable, we can't easily override it unless we use !important or controlled position.
+        // Since we use controlled position in Draggable (pos), we can set pos to {0, 30} when maximized?
+        // No, we want to preserve the 'restore' position.
+        // So we should disable Draggable and force styles.
       }}
       onMouseDown={onFocus}
       initial="hidden"
@@ -212,19 +218,31 @@ export const MacWindow: React.FC<MacWindowProps> = ({
 
   if (isMinimized) return null;
 
-  if (isMaximized) {
-    return windowContent;
-  }
+  // Always render Draggable to preserve component tree, but disable it when maximized
+  // When maximized, we want the window to be at 0,0 (relative to viewport, but Draggable uses transform).
+  // If we disable Draggable, it renders the child.
+  // But we need to ensure the child is positioned correctly.
+  // If we use position={isMaximized ? {x:0, y:0} : pos}, Draggable will apply that transform.
+  // But when maximized, we want it fixed?
+  // Actually, if we set position to {0,0} and disable dragging, it will be at the top-left of the container?
+  // Our container is the desktop (relative).
+  // So {x:0, y:0} works if we want it at top-left.
 
   return (
     <Draggable
       handle=".window-drag-handle"
-      position={pos || defaultPos}
+      position={isMaximized ? { x: 0, y: 0 } : (pos || defaultPos)}
       onStart={onFocus}
       onDrag={(_e, data) => setPos({ x: data.x, y: data.y })}
-      onStop={(_e, data) => { setPos({ x: data.x, y: data.y }); onMove(data.x, data.y); }}
+      onStop={(_e, data) => {
+        if (!isMaximized) {
+          setPos({ x: data.x, y: data.y });
+          onMove(data.x, data.y);
+        }
+      }}
       nodeRef={nodeRef}
-      bounds="parent" // Prevent dragging off screen completely
+      bounds="parent"
+      disabled={isMaximized}
     >
       {windowContent}
     </Draggable>

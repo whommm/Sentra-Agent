@@ -14,6 +14,7 @@ interface IOSEditorProps {
     onClose: () => void;
     saving: boolean;
     isExample: boolean;
+    backLabel?: string;
 }
 
 export const IOSEditor: React.FC<IOSEditorProps> = ({
@@ -26,13 +27,14 @@ export const IOSEditor: React.FC<IOSEditorProps> = ({
     onMinimize,
     onClose,
     saving,
-    isExample
+    isExample,
+    backLabel = '主页'
 }) => {
     return (
         <div className="ios-app-window">
             <div className="ios-app-header">
                 <div className="ios-back-btn" onClick={onMinimize}>
-                    <IoChevronBack /> Home
+                    <IoChevronBack /> {backLabel}
                 </div>
                 <div>{appName}</div>
                 <div

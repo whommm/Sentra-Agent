@@ -172,14 +172,34 @@ export const Launchpad: React.FC<LaunchpadProps> = ({ isOpen, onClose, items }) 
               className={styles.pagesContainer}
               ref={pagesContainerRef}
             >
-              <AnimatePresence mode='wait'>
+              <AnimatePresence initial={false} custom={pageDir} mode='wait'>
                 <motion.div
                   key={activePage}
                   className={`${styles.grid} ${isMobileView ? styles.mobileGrid : ''}`}
-                  initial={{ opacity: 0, x: 100 * pageDir, y: 0 }}
-                  animate={{ opacity: 1, x: 0, y: 0 }}
-                  exit={{ opacity: 0, x: -100 * pageDir, y: 0 }}
-                  transition={{ type: 'spring', stiffness: 260, damping: 26, mass: 0.6 }}
+                  custom={pageDir}
+                  variants={{
+                    enter: (direction: number) => ({
+                      x: direction > 0 ? 100 : -100,
+                      opacity: 0
+                    }),
+                    center: {
+                      zIndex: 1,
+                      x: 0,
+                      opacity: 1
+                    },
+                    exit: (direction: number) => ({
+                      zIndex: 0,
+                      x: direction < 0 ? 100 : -100,
+                      opacity: 0
+                    })
+                  }}
+                  initial="enter"
+                  animate="center"
+                  exit="exit"
+                  transition={{
+                    x: { type: "spring", stiffness: 300, damping: 30 },
+                    opacity: { duration: 0.2 }
+                  }}
                   drag={isMobileView ? 'x' : false}
                   dragConstraints={{ left: 0, right: 0 }}
                   dragElastic={0.2}
@@ -188,7 +208,7 @@ export const Launchpad: React.FC<LaunchpadProps> = ({ isOpen, onClose, items }) 
                   onDragEnd={(_, info) => {
                     const offsetX = info.offset.x;
                     const velocityX = info.velocity.x;
-                    const swipePower = offsetX * velocityX; // 带方向的功率
+                    const swipePower = offsetX * velocityX;
                     const OFFSET_THRESHOLD = 20;
                     const VELOCITY_THRESHOLD = 150;
                     const POWER_THRESHOLD = 600;

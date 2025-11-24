@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { EnvVariable } from '../types/config';
 import styles from './EnvEditor.module.css';
 import { IoAdd, IoSave, IoTrash, IoInformationCircle, IoSearch, IoWarning } from 'react-icons/io5';
@@ -34,11 +34,32 @@ export const EnvEditor: React.FC<EnvEditorProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState<{ index: number; key: string } | null>(null);
 
+  // Filter logic: include key, value, and comment
   const filteredVars = vars.map((v, i) => ({ ...v, originalIndex: i }))
     .filter(v =>
       v.key.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (v.value && v.value.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (v.comment && v.comment.toLowerCase().includes(searchTerm.toLowerCase()))
     );
+
+  // Handle global Ctrl+F to focus search
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+        e.preventDefault();
+        document.getElementById('env-search-input')?.focus();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  const handleEditorMount = (editor: any, monaco: any) => {
+    // Disable built-in find widget and redirect to our search
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyF, () => {
+      document.getElementById('env-search-input')?.focus();
+    });
+  };
 
   return (
     <div
@@ -54,6 +75,7 @@ export const EnvEditor: React.FC<EnvEditorProps> = ({
             <div className={styles.searchWrapper}>
               <IoSearch className={styles.searchIcon} />
               <SafeInput
+                id="env-search-input"
                 type="text"
                 placeholder="搜索配置..."
                 value={searchTerm}
@@ -181,6 +203,7 @@ export const EnvEditor: React.FC<EnvEditorProps> = ({
                       defaultLanguage="plaintext"
                       value={v.value}
                       onChange={(value) => onUpdate(v.originalIndex, 'value', value || '')}
+                      onMount={handleEditorMount}
                       options={{
                         minimap: { enabled: false },
                         lineNumbers: 'off',
@@ -198,7 +221,12 @@ export const EnvEditor: React.FC<EnvEditorProps> = ({
                         scrollBeyondLastLine: false,
                         automaticLayout: true,
                         fixedOverflowWidgets: true,
-                        padding: { top: 6, bottom: 6 }
+                        padding: { top: 6, bottom: 6 },
+                        find: {
+                          addExtraSpaceOnTop: false,
+                          autoFindInSelection: 'never',
+                          seedSearchStringFromSelection: 'never'
+                        }
                       }}
                       theme={theme === 'dark' ? 'vs-dark' : 'light'}
                     />

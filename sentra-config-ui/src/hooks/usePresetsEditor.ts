@@ -11,7 +11,7 @@ export interface PresetsEditorState {
     saving: boolean;
     loadingFile: boolean;
     setSearchTerm: (term: string) => void;
-    selectFile: (file: PresetFile) => void;
+    selectFile: (file: PresetFile | null) => void;
     saveFile: () => Promise<void>;
     setFileContent: (content: string) => void;
     createFile: (filename: string) => Promise<void>;
@@ -19,7 +19,10 @@ export interface PresetsEditorState {
     refreshFiles: () => Promise<void>;
 }
 
-export function usePresetsEditor(addToast: (type: 'success' | 'error', title: string, message?: string) => void): PresetsEditorState {
+export function usePresetsEditor(
+    addToast: (type: 'success' | 'error', title: string, message?: string) => void,
+    isAuthenticated: boolean
+): PresetsEditorState {
     const [files, setFiles] = useState<PresetFile[]>([]);
     const [selectedFile, setSelectedFile] = useState<PresetFile | null>(null);
     const [fileContent, setFileContent] = useState<string>('');
@@ -30,8 +33,9 @@ export function usePresetsEditor(addToast: (type: 'success' | 'error', title: st
 
     const loadFiles = useCallback(async (silent = false) => {
         // Check if user is authenticated before making API call
+        // We use the prop passed in, but also check storage as a fallback/confirmation
         const token = sessionStorage.getItem('sentra_auth_token');
-        if (!token) {
+        if (!token && !isAuthenticated) {
             console.log('Skipping presets load: not authenticated');
             return;
         }
@@ -42,17 +46,27 @@ export function usePresetsEditor(addToast: (type: 'success' | 'error', title: st
             setFiles(data);
         } catch (error) {
             console.error('Failed to load presets:', error);
-            addToast('error', '加载失败', '无法获取预设文件列表');
+            // Only show toast if we thought we were authenticated
+            if (isAuthenticated) {
+                addToast('error', '加载失败', '无法获取预设文件列表');
+            }
         } finally {
             if (!silent) setLoading(false);
         }
-    }, [addToast]);
+    }, [addToast, isAuthenticated]);
 
     useEffect(() => {
-        loadFiles();
-    }, [loadFiles]);
+        if (isAuthenticated) {
+            loadFiles();
+        }
+    }, [loadFiles, isAuthenticated]);
 
-    const selectFile = useCallback(async (file: PresetFile) => {
+    const selectFile = useCallback(async (file: PresetFile | null) => {
+        if (!file) {
+            setSelectedFile(null);
+            setFileContent('');
+            return;
+        }
         if (selectedFile?.path === file.path) return;
 
         try {

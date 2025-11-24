@@ -9,6 +9,7 @@ import {
     IoPlay,
     IoDocumentText
 } from 'react-icons/io5';
+import { IoFolderOpen } from 'react-icons/io5';
 
 // Helper to create folder icon with app thumbnails
 function createFolderIcon(apps: DesktopIcon[], bgColor: string) {
@@ -200,6 +201,7 @@ export function buildDesktopIcons(
     handleRunUpdate: () => void,
     handleRunForceUpdate: () => void,
     handleOpenPresets: () => void,
+    handleOpenFileManager: () => void,
 ): DesktopIcon[] {
     const iconSize = 56;
     const gap = 100;
@@ -207,6 +209,21 @@ export function buildDesktopIcons(
     const startY = 80;
 
     return [
+        {
+            id: 'desktop-filemanager',
+            name: '文件管理',
+            icon: <AppIconWrapper
+                bg="linear-gradient(135deg, #f6d365 0%, #fda085 100%)"
+                shadow="0 8px 16px rgba(253, 160, 133, 0.4), inset 0 1px 2px rgba(255,255,255,0.3)"
+            >
+                <IoFolderOpen color="white" size={iconSize} />
+            </AppIconWrapper>,
+            position: { x: startX, y: startY },
+            onClick: () => {
+                recordUsage('app:filemanager');
+                handleOpenFileManager();
+            }
+        },
         {
             id: 'desktop-presets',
             name: '预设撰写',
@@ -216,7 +233,7 @@ export function buildDesktopIcons(
             >
                 <IoDocumentText color="white" size={iconSize} />
             </AppIconWrapper>,
-            position: { x: startX, y: startY },
+            position: { x: startX + gap, y: startY },
             onClick: () => {
                 recordUsage('app:presets');
                 handleOpenPresets();

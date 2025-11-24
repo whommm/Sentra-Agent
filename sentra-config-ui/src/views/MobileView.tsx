@@ -1,13 +1,15 @@
+import React from 'react';
 import { IOSHomeScreen } from '../components/IOSHomeScreen';
 import { IOSEditor } from '../components/IOSEditor';
 import { IOSPresetsEditor } from '../components/IOSPresetsEditor';
 import { Launchpad } from '../components/Launchpad';
 import { TerminalWindow } from '../components/TerminalWindow';
-import { ToastContainer, ToastMessage } from '../components/Toast';
+import { ToastContainer, ToastMessage, ToastType } from '../components/Toast';
 import { IoChevronBack } from 'react-icons/io5';
 import { getDisplayName, getIconForType } from '../utils/icons';
 import { FileItem, IOSEditorWin, DesktopIcon, TerminalWin, AppFolder } from '../types/ui';
 import { PresetsEditorState } from '../hooks/usePresetsEditor';
+import { IOSFileManager } from '../components/IOSFileManager';
 
 export type MobileViewProps = {
   allItems: FileItem[];
@@ -34,11 +36,14 @@ export type MobileViewProps = {
   handleCloseTerminal: (id: string) => void;
   iosPresetsEditorOpen: boolean;
   setIosPresetsEditorOpen: (open: boolean) => void;
-  addToast: (type: 'success' | 'error', title: string, message?: string) => void;
+  iosFileManagerOpen: boolean;
+  setIosFileManagerOpen: (open: boolean) => void;
+  addToast: (type: ToastType, title: string, message?: string) => void;
   presetsState: PresetsEditorState;
 };
 
 export function MobileView(props: MobileViewProps) {
+  const [returnToLaunchpad, setReturnToLaunchpad] = React.useState(false);
   const {
     allItems,
     usageCounts,
@@ -64,6 +69,8 @@ export function MobileView(props: MobileViewProps) {
     handleCloseTerminal,
     iosPresetsEditorOpen,
     setIosPresetsEditorOpen,
+    iosFileManagerOpen,
+    setIosFileManagerOpen,
     addToast,
     presetsState,
   } = props;
@@ -78,7 +85,11 @@ export function MobileView(props: MobileViewProps) {
     id: `${it.type}-${it.name}`,
     name: getDisplayName(it.name),
     icon: getIconForType(it.name, it.type),
-    onClick: () => { recordUsage(`${it.type}:${it.name}`); handleIOSOpenWindow(it); }
+    onClick: () => {
+      recordUsage(`${it.type}:${it.name}`);
+      setReturnToLaunchpad(false); // Reset when opening from Dock
+      handleIOSOpenWindow(it);
+    }
   }));
 
   // Add Presets to Dock
@@ -89,12 +100,23 @@ export function MobileView(props: MobileViewProps) {
     onClick: () => setIosPresetsEditorOpen(true)
   });
 
+  // Add File Manager to Dock
+  iosDockExtra.push({
+    id: 'ios-filemanager',
+    name: '文件管理',
+    icon: getIconForType('file-manager', 'module'),
+    onClick: () => setIosFileManagerOpen(true)
+  });
+
   return (
     <>
       <IOSHomeScreen
         icons={desktopIcons}
         folders={desktopFolders}
-        onLaunch={(icon) => icon.onClick()}
+        onLaunch={(icon) => {
+          setReturnToLaunchpad(false); // Reset when opening from Home
+          icon.onClick();
+        }}
         wallpaper="/wallpapers/ios-default.png"
         onLaunchpadOpen={() => setLaunchpadOpen(true)}
         dockExtra={iosDockExtra}
@@ -103,12 +125,17 @@ export function MobileView(props: MobileViewProps) {
       {terminalWindows.map(term => (
         <div key={term.id} className="ios-app-window" style={{ display: term.minimized ? 'none' : 'flex' }}>
           <div className="ios-app-header">
-            <div className="ios-back-btn" onClick={() => handleMinimizeTerminal(term.id)}>
-              <IoChevronBack /> Home
+            <div className="ios-back-btn" onClick={() => {
+              handleMinimizeTerminal(term.id);
+              if (returnToLaunchpad) {
+                setLaunchpadOpen(true);
+              }
+            }}>
+              <IoChevronBack /> {returnToLaunchpad ? '应用' : '主页'}
             </div>
             <div>{term.title}</div>
             <div style={{ color: '#ff3b30', cursor: 'pointer', fontWeight: 'bold' }} onClick={() => handleCloseTerminal(term.id)}>
-              Close
+              关闭
             </div>
           </div>
           <TerminalWindow processId={term.processId} />
@@ -123,6 +150,7 @@ export function MobileView(props: MobileViewProps) {
           type: item.type,
           onClick: () => {
             recordUsage(`${item.type}:${item.name}`);
+            setReturnToLaunchpad(true); // Set flag when opening from Launchpad
             handleIOSOpenWindow(item);
             setLaunchpadOpen(false);
           }
@@ -140,10 +168,16 @@ export function MobileView(props: MobileViewProps) {
               onAdd={() => handleIOSAddVar(win.id)}
               onDelete={(idx) => handleIOSDeleteVar(win.id, idx)}
               onSave={() => handleIOSSave(win.id)}
-              onMinimize={() => handleIOSMinimizeEditor(win.id)}
+              onMinimize={() => {
+                handleIOSMinimizeEditor(win.id);
+                if (returnToLaunchpad) {
+                  setLaunchpadOpen(true);
+                }
+              }}
               onClose={() => handleIOSCloseEditor(win.id)}
               saving={saving}
               isExample={!win.file.hasEnv && win.file.hasExample}
+              backLabel={returnToLaunchpad ? '应用' : '主页'}
             />
           </div>
         ))}
@@ -155,6 +189,29 @@ export function MobileView(props: MobileViewProps) {
             addToast={addToast}
             state={presetsState}
           />
+        </div>
+      )}
+
+      {iosFileManagerOpen && (
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', zIndex: 2000 }}>
+          <div className="ios-app-window" style={{ display: 'flex' }}>
+            <div className="ios-app-header">
+              <div className="ios-back-btn" onClick={() => setIosFileManagerOpen(false)}>
+                <IoChevronBack /> 主页
+              </div>
+              <div>文件管理</div>
+              <div style={{ color: '#ff3b30', cursor: 'pointer', fontWeight: 'bold' }} onClick={() => setIosFileManagerOpen(false)}>
+                关闭
+              </div>
+            </div>
+            <div style={{ flex: 1, overflow: 'hidden' }}>
+              <IOSFileManager
+                onClose={() => setIosFileManagerOpen(false)}
+                addToast={addToast}
+                theme="dark"
+              />
+            </div>
+          </div>
         </div>
       )}
 

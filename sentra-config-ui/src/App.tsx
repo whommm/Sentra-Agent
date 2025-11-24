@@ -158,9 +158,11 @@ function App() {
   } = useIOSEditor({ setSaving, addToast, loadConfigs });
 
   // Presets Editor State via hook
-  const presetsState = usePresetsEditor(addToast);
+  const presetsState = usePresetsEditor(addToast, isAuthenticated);
   const [presetsEditorOpen, setPresetsEditorOpen] = useState(false);
   const [iosPresetsEditorOpen, setIosPresetsEditorOpen] = useState(false);
+  const [fileManagerOpen, setFileManagerOpen] = useState(false);
+  const [iosFileManagerOpen, setIosFileManagerOpen] = useState(false);
 
   const handleOpenPresets = () => {
     if (isMobile || isTablet) {
@@ -168,6 +170,15 @@ function App() {
     } else {
       setPresetsEditorOpen(true);
       bringToFront('presets-editor');
+    }
+  };
+
+  const handleOpenFileManager = () => {
+    if (isMobile || isTablet) {
+      setIosFileManagerOpen(true);
+    } else {
+      setFileManagerOpen(true);
+      bringToFront('file-manager');
     }
   };
 
@@ -189,6 +200,7 @@ function App() {
     handleRunUpdate,
     handleRunForceUpdate,
     handleOpenPresets,
+    handleOpenFileManager,
   );
 
   // Desktop folders (for desktop view)
@@ -458,6 +470,8 @@ function App() {
         desktopFolders={desktopFolders}
         iosPresetsEditorOpen={iosPresetsEditorOpen}
         setIosPresetsEditorOpen={setIosPresetsEditorOpen}
+        iosFileManagerOpen={iosFileManagerOpen}
+        setIosFileManagerOpen={setIosFileManagerOpen}
         addToast={addToast}
         presetsState={presetsState}
       />
@@ -521,6 +535,8 @@ function App() {
       loadConfigs={loadConfigs}
       presetsEditorOpen={presetsEditorOpen}
       setPresetsEditorOpen={setPresetsEditorOpen}
+      fileManagerOpen={fileManagerOpen}
+      setFileManagerOpen={setFileManagerOpen}
       presetsState={presetsState}
       addToast={addToast}
     />

@@ -3,6 +3,7 @@
 
 import MCPCore from '../mcpcore/index.js';
 import { planThenExecute, planThenExecuteStream } from '../agent/planners.js';
+import { startHotReloadWatchers } from '../config/hotReload.js';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
@@ -60,6 +61,8 @@ export class SentraMcpSDK {
   async init() {
     if (this._initialized) return;
     await this.mcpcore.init();
+    // 启动 .env / 插件 .env 热更新监控（只会在进程内启动一次）
+    startHotReloadWatchers(this.mcpcore);
     this._initialized = true;
   }
 

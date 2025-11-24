@@ -10,7 +10,8 @@ import { ToastContainer, ToastMessage } from '../components/Toast';
 import { Dialog } from '../components/Dialog';
 import { Menu, Item, Submenu, useContextMenu } from 'react-contexify';
 import { getDisplayName, getIconForType } from '../utils/icons';
-import { IoCubeOutline, IoTerminalOutline } from 'react-icons/io5';
+import { IoCubeOutline, IoTerminalOutline, IoFolderOpen } from 'react-icons/io5';
+import { FileManager } from '../components/FileManager';
 import type { DeskWindow, DesktopIcon, FileItem, TerminalWin, AppFolder } from '../types/ui';
 import { AppFolderModal } from '../components/AppFolderModal';
 
@@ -88,7 +89,9 @@ export type DesktopViewProps = {
   loadConfigs: () => void | Promise<void>;
   presetsEditorOpen: boolean;
   setPresetsEditorOpen: (open: boolean) => void;
-  addToast: (type: 'success' | 'error', title: string, message?: string) => void;
+  fileManagerOpen: boolean;
+  setFileManagerOpen: (open: boolean) => void;
+  addToast: (type: 'success' | 'error' | 'info', title: string, message?: string) => void;
   presetsState: any; // Type will be refined in component
 };
 
@@ -148,6 +151,8 @@ export function DesktopView(props: DesktopViewProps) {
     loadConfigs,
     presetsEditorOpen,
     setPresetsEditorOpen,
+    fileManagerOpen,
+    setFileManagerOpen,
     presetsState,
     addToast,
   } = props;
@@ -278,6 +283,30 @@ export function DesktopView(props: DesktopViewProps) {
         </MacWindow>
       )}
 
+      {fileManagerOpen && (
+        <MacWindow
+          id="file-manager"
+          title="文件管理"
+          icon={<IoFolderOpen style={{ color: '#dcb67a' }} />}
+          zIndex={101}
+          isActive={true}
+          isMinimized={false}
+          initialPos={{ x: 150, y: 80 }}
+          initialSize={{ width: 1000, height: 700 }}
+          onClose={() => setFileManagerOpen(false)}
+          onMinimize={() => setFileManagerOpen(false)}
+          onMaximize={() => { }}
+          onFocus={() => bringToFront('file-manager')}
+          onMove={() => { }}
+        >
+          <FileManager
+            onClose={() => setFileManagerOpen(false)}
+            theme={theme}
+            addToast={addToast}
+          />
+        </MacWindow>
+      )}
+
       {/* Desktop Folders or Icons */}
       {desktopFolders ? (
         <>
@@ -321,6 +350,57 @@ export function DesktopView(props: DesktopViewProps) {
               </div>
             </div>
           ))}
+
+          {/* File Manager Icon */}
+          {desktopIcons?.find(i => i.id === 'desktop-filemanager') && (
+            (() => {
+              const icon = desktopIcons.find(i => i.id === 'desktop-filemanager')!;
+              // Calculate position based on folders layout
+              // startX = 30, gap = 120, startY = 80 (from buildDesktopIcons.tsx)
+              const folderCount = desktopFolders.length;
+              const leftPos = 30 + (folderCount * 120);
+
+              return (
+                <div
+                  key={icon.id}
+                  style={{
+                    position: 'absolute',
+                    left: leftPos,
+                    top: 80,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    cursor: 'pointer',
+                    padding: '8px',
+                    borderRadius: '12px',
+                    transition: 'all 0.2s',
+                    width: 90,
+                  }}
+                  onClick={icon.onClick}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'transparent';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                  }}
+                >
+                  <div style={{ marginBottom: 8 }}>{icon.icon}</div>
+                  <div style={{
+                    fontSize: 12,
+                    color: 'white',
+                    textShadow: '0 1px 3px rgba(0,0,0,0.8)',
+                    fontWeight: 500,
+                    textAlign: 'center',
+                    lineHeight: 1.2,
+                  }}>
+                    {icon.name}
+                  </div>
+                </div>
+              );
+            })()
+          )}
 
           {/* Folder Modal */}
           {openFolderId && (

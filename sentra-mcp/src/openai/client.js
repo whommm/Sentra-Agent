@@ -3,13 +3,16 @@ import { config } from '../config/index.js';
 import logger from '../logger/index.js';
 
 let client;
+let clientKey;
 
 export function getOpenAI() {
-  if (!client) {
+  const key = `${config.llm.apiKey || ''}@@${config.llm.baseURL || ''}`;
+  if (!client || clientKey !== key) {
     client = new OpenAI({
       apiKey: config.llm.apiKey,
       baseURL: config.llm.baseURL,
     });
+    clientKey = key;
   }
   return client;
 }
